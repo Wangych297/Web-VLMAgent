@@ -1,0 +1,124 @@
+tasks:
+  - task_id: bilibili_public_video_intro
+    site: bilibili
+    difficulty: easy
+    start_url: https://www.bilibili.com/
+    instruction: >
+      从 B 站主页进入一个公开视频页，查找并返回视频标题、链接和页面可见的视频简介；
+      如果页面没显示简介，就明确回答“页面未显示视频简介”。不要登录，不要投币、点赞、
+      收藏、关注、发弹幕或发表评论。如果出现登录提示浮层且挡住页面，可以先按 Escape 关闭，
+      但不要点击登录。
+    max_steps: 20
+    success_criteria:
+      type: field_coverage
+      required_fields:
+        - 视频标题
+        - 视频链接
+        - 页面可见的视频简介或“页面未显示视频简介”
+      required_sources:
+        - bilibili.com
+      success_definition: >
+        成功答案必须来自一个 B 站公开视频页，包含标题、视频 URL、页面可见简介；
+        如果简介区域不可见或没有简介，必须明确说明页面未显示视频简介。
+    forbidden_actions:
+      - login
+      - payment
+      - purchase
+      - submit
+      - like
+      - coin
+      - favorite
+      - follow
+      - comment
+      - danmaku
+      - submit sensitive information
+
+  - task_id: bilibili_ai_search_top3_audience
+    site: bilibili
+    difficulty: medium
+    start_url: https://search.bilibili.com/all?keyword=%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD
+    instruction: >
+      打开 B 站“人工智能”搜索结果页，读取综合排序前三个结果的 UP 主上传视频可见信息。
+      请分别分析每一个视频的受众，返回视频标题、受众和理由。不要登录，不要投币、点赞、
+      收藏、关注、发弹幕或发表评论。如果出现登录提示浮层且挡住页面，可以先按 Escape 关闭，
+      但不要点击登录。
+    max_steps: 30
+    success_criteria:
+      type: count_and_reasoning
+      required_video_count: 3
+      required_fields:
+        - 视频标题
+        - 受众
+        - 理由
+      required_sources:
+        - bilibili.com
+      success_definition: >
+        成功答案必须基于 B 站“人工智能”搜索结果页综合排序的前三个可见 UP 主上传视频，
+        至少给出 3 个视频标题，并分别给出受众判断和基于页面可见信息的理由。
+    forbidden_actions:
+      - login
+      - payment
+      - purchase
+      - submit
+      - like
+      - coin
+      - favorite
+      - follow
+      - comment
+      - danmaku
+      - submit sensitive information
+
+  - task_id: bilibili_bangumi_recommend_html
+    site: bilibili
+    difficulty: hard
+    start_url: https://www.bilibili.com/
+    instruction: >
+      从 B 站原创番剧开始，真实浏览当前热门番剧列表。至少浏览 5 个不同候选番剧，
+      逐个打开它们的详情页，记录：番剧名称、评分及评分人数、简介。不要只看封面，
+      要点进具体详情页确认。在你初步浏览的候选里，选出 3 个你最可能向别人推荐的番剧，
+      然后去其他外部资料站如豆瓣、Bangumi 国内镜像、MyAnimeList、AniDB 核验信息，
+      核验时将番剧名称翻译成网页对应语言。核验并记录：首播年份、类型/标签、制作公司、
+      主要主创（导演/系列构成/原作等，至少记录页面上明确列出的两项）、该站评分
+      （并说明评分形式，比如 10 分制/5 星制/百分制）、以及该站提供的简介摘要
+      （如果简介太长，可提取前两句并注明“截取”）。如果某站评分因为反爬看不到具体数字，
+      如实说明你看到了什么、没看到什么。基于你收集的信息，从候选中选出一个最适合推荐的番剧，
+      并给出清晰选择理由（必须结合热度、类型、评分、制作阵容等数据说明）。
+      然后，回到 B 站搜索该番剧相关的 UP 主上传的介绍视频，利用
+      https://peanutdl.com/zh/bilibili 返回下载链接。最后，根据最终选择番剧的封面、名称、
+      首播年份、类型、制作公司、主创、评分、简介摘要、选择理由、下载链接，
+      生成精致的 HTML 展示页向别人推荐这部番剧。不要登录，不要投币、点赞、收藏、关注、
+      发弹幕或发表评论。如果出现登录提示浮层且挡住页面，可以先按 Escape 关闭，但不要点击登录。
+    max_steps: 90
+    success_criteria:
+      type: long_form_multisource_artifact
+      minimum_bilibili_bangumi_detail_pages: 5
+      minimum_external_verified_titles: 3
+      required_fields:
+        - 番剧名称
+        - B 站评分及评分人数
+        - B 站简介
+        - 外部资料站首播年份
+        - 类型或标签
+        - 制作公司
+        - 至少两项主创
+        - 外部站评分及评分形式
+        - 简介摘要
+        - 推荐理由
+        - UP 主介绍视频下载链接
+        - HTML 展示页
+      success_definition: >
+        成功答案应当提供完整可追溯的推荐材料，而不是只给列表。必须至少打开 5 个 B 站番剧详情页，
+        对 3 个候选进行外部站核验，最终选出 1 个推荐对象，并包含下载链接和 HTML 展示页内容。
+        若外部站或 peanutdl 受限，应明确记录看到和没看到的内容，并尽量完成可用部分。
+    forbidden_actions:
+      - login
+      - payment
+      - purchase
+      - submit
+      - like
+      - coin
+      - favorite
+      - follow
+      - comment
+      - danmaku
+      - submit sensitive information

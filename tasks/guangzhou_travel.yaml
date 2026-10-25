@@ -1,0 +1,123 @@
+tasks:
+  - task_id: guangzhou_ctrip_top_attraction
+    site: ctrip
+    difficulty: easy
+    start_url: https://www.ctrip.com/
+    instruction: >
+      请你打开携程网站，查找广州景点页面，找到当前页面按评分或推荐排序后显示的排名第 1 个广州景点。
+      请返回这个景点的名称、携程评分、所在区域或地址、页面上能看到的开放时间/门票提示，
+      以及对应的携程详情页 URL。不要登录、不要下单、不要预约；如果有弹窗就关闭后继续。
+    max_steps: 18
+    success_criteria:
+      type: field_coverage
+      required_fields:
+        - 景点名称
+        - 携程评分
+        - 区域或地址
+        - 开放时间或门票提示
+        - 携程详情页 URL
+      required_sources:
+        - ctrip.com
+      success_definition: >
+        成功答案应来自携程广州景点页面或携程景点详情页，必须包含排名第 1 个景点的名称、
+        携程评分、地址或区域、页面可见的开放时间或门票提示，以及携程详情页 URL。
+    forbidden_actions:
+      - login
+      - payment
+      - purchase
+      - checkout
+      - submit
+      - reserve
+      - book
+      - submit sensitive information
+
+  - task_id: guangzhou_ctrip_chimelong_sights_medium
+    site: ctrip
+    difficulty: medium
+    start_url: https://you.ctrip.com/sight/guangzhou152.html
+    instruction: >
+      我打算 2026 年 7 月 18 日去广州长隆附近玩一天，想用携程网页挑一个最值得优先安排的景点或游玩项目。
+      请只使用携程网页，不要登录、不要下单、不要提交订单或预约。
+
+      请从广州携程景点页面出发，至少打开 3 个真实的携程景点详情页，优先看长隆野生动物世界、
+      广州长隆度假区、长隆欢乐世界、广州长隆国际大马戏这类番禺长隆相关页面；如果页面上没有足够信息，
+      可以选择广州塔、珠江夜游、南越王博物院等广州热门景点作为对比。
+
+      最后帮我对比这些页面上能看到的景点名称、携程评分或热度、地址或所在区域、开放时间、
+      门票价格或票务提示、适合什么人去，并推荐最值得优先安排的 1 个。请列出每个详情页的来源 URL；
+      如果某个字段页面上看不清楚，就明确说明没看到。
+    max_steps: 24
+    success_criteria:
+      type: evidence_count_and_field_coverage
+      required_detail_pages: 3
+      required_sources:
+        - you.ctrip.com/sight
+      required_fields:
+        - 景点名称
+        - 携程评分或热度
+        - 地址或所在区域
+        - 开放时间
+        - 门票价格或票务提示
+        - 推荐 1 个景点
+        - 来源 URL
+      success_definition: >
+        成功答案必须只使用携程景点详情页作为来源，至少打开 3 个不同的携程景点详情页，
+        并对比景点名称、评分或热度、地址或区域、开放时间、门票价格或票务提示、适合人群，
+        最后推荐 1 个最值得优先安排的景点或游玩项目。不得登录、下单、提交订单或预约。
+    forbidden_actions:
+      - login
+      - payment
+      - purchase
+      - checkout
+      - submit
+      - reserve
+      - book
+      - submit sensitive information
+
+  - task_id: guangzhou_two_day_real_web_plan
+    site: real_web_travel
+    difficulty: hard
+    start_url: https://cn.bing.com/
+    instruction: >
+      我周末想去广州玩两天一晚，从广州南站进出，不租车，预算中等。请你真的使用网页来规划，
+      不要只看旅游攻略摘要。住宿请按北京路/公园前、海珠广场、珠江新城这几个区域比较，
+      去真实酒店/旅行平台页面查看具体酒店详情，至少打开 3 家酒店页面，记录酒店名、位置、
+      最近地铁站、评分、当前房价或价格区间、为什么适合我，最后推荐 1-2 家。
+      餐饮请围绕早茶、本地小吃和晚餐分别查真实餐厅页面，优先看大众点评、美团、高德、携程
+      或其他有评分和人均价格的平台。至少打开 4 家餐厅详情页，记录餐厅名、所在区域、评分、
+      人均价格、代表菜或页面上明确写到的特色，最后把它们放进两天行程里。
+      景点请查真实官网、政府网站、博物馆官网或官方票务页面，不要只用攻略站。
+      请确认开放时间、预约要求、门票或注意事项。最后给我一份可执行的广州两日攻略：
+      每天上午、下午、晚上怎么走，住哪里，吃哪几家，主要交通方式，预算大概多少，
+      雨天怎么替换，并列出每个酒店、餐厅、景点对应的信息来源 URL。
+      不要登录、不要下单、不要代预约；如果酒店日期、价格或餐厅评分因为网站限制看不清楚，
+      要明确说明你看到了什么、没看到什么。
+    max_steps: 70
+    success_criteria:
+      type: multi_source_plan
+      minimum_hotel_pages: 3
+      minimum_restaurant_pages: 4
+      minimum_official_attraction_pages: 2
+      required_fields:
+        - 两日行程
+        - 上午/下午/晚上安排
+        - 酒店对比与推荐
+        - 餐厅信息与人均价格
+        - 景点开放时间或预约/门票
+        - 交通方式
+        - 预算
+        - 雨天替换
+        - 来源 URL
+      success_definition: >
+        成功答案必须是一份可执行的广州两日攻略，包含酒店、餐饮、景点三类真实网页证据；
+        至少 3 家酒店详情页、4 家餐厅详情页、2 个官方/政府/博物馆/官方票务类景点页面，
+        并给出来源 URL、预算、交通和雨天方案。不允许登录、下单或代预约。
+    forbidden_actions:
+      - login
+      - payment
+      - purchase
+      - checkout
+      - submit
+      - reserve
+      - book
+      - submit sensitive information

@@ -1,0 +1,57 @@
+% !TEX root = ../main.tex
+
+\section{错误分析、局限与展望}
+
+\subsection{从有效样本看失败模式}
+
+第一轮 DeepSeek V4 Pro 重复评测首先暴露出一个关键现象：同一个模型在 easy/medium 任务上可以非常稳定，但在 hard 任务上会系统性失败。CSRankings hard 需要依次完成 8 个方向的学校排名统计、候选学校筛选、并列规则计算，再回到 faculty 层统计 \# Pubs 覆盖；评测表明 DeepSeek V4 Pro该任务均未通过，主要表现为重复筛选、证据不足、卡住或请求人工确认。十模型横向实验也出现类似现象：模型可能已浏览大量页面、甚至结束主流程，但仍选择错误 faculty 或遗漏关键字段，此类样本应归为规划或验证失败。
+
+开放任务中，Bilibili 和广州旅游的 medium/hard 更强调跨页证据管理。DeepSeek V4 Pro 在 Bilibili 三个任务上均计为 10/10 成功，在广州 hard 上 9/10 成功，但广州 hard 平均步数达到 34.10，说明开放长链任务即使能完成，也会显著放大证据组织成本。十模型实验中的典型失败包括在搜索页与详情页间重复跳转、只读到部分候选项就提前回答、或收集了信息却没有记录其来源 URL。这说明 JSON 动作合法并不保证任务真的完成，进度检查、任务清单和 trace 证据共同构成了评测闭环。
+
+\subsection{失败类型与改进方向}
+
+\begin{table}[H]
+  \centering
+  \caption{失败类型、典型表现与改进方法}
+  \label{tab:failure-types}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.18\textwidth}YY}
+    \toprule
+    类型 & 典型表现 & 可能改进 \\
+    \midrule
+    感知失败 & 看不到弹窗、误读截图、候选元素缺失或编号遮挡 & 改进元素过滤、A11y 补充、截图裁剪、多尺度 SoM；对图像密集页面加入 OCR。\\
+    定位失败 & 选择不存在或不可见的 \jsonkey{target\_id}，点击后无响应 & 更严格候选生成，失败后自动重新观察，将定位错误反馈给模型。\\
+    规划失败 & 重复搜索、遗漏任务字段、过早回答、长链任务忘记证据 & 引入 checklist、任务分解、结构化 notebook，将 planner 与 executor 分离。\\
+    执行失败 & 网站跳转异常、按钮被遮挡、网络超时、页面加载慢 & 更稳定的等待策略、弹窗处理、重试机制和环境错误分类。\\
+    验证失败 & harness 成功但答案错误，开放任务字段覆盖不等于真实完成 & 确定性 validator、LLM-as-judge、人工复核和 trace 证据约束。\\
+    网站/服务失败 & 站点访问异常、API timeout、HTTP 400、安全策略或上下文上限 & 与模型能力错误分离记录，保留原始报错并在环境恢复后补跑。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+本轮数据中，DeepSeek V4 Pro 正式评测 90 次成功 76 次，失败 14 次；失败类型主要集中在 planning failure 13 次，另有 perception failure 1 次。十模型有效样本也没有出现大量结构化动作解析失败。因此，瓶颈主要转移到长链任务的计划分解、证据组织和最终严格校验。另一方面，API timeout、内容拦截和图文 token 超限说明代理服务、模型接口和 observation 预算同样会决定评测是否有效。因此，报告结果时应同时呈现有效样本结论、无效样本数量及其原因，而不能把所有失败压缩为单一成功率。
+
+\subsection{当前局限}
+
+当前系统已经具备课程项目所需的完整闭环，但仍有明显局限。
+\begin{enumerate}
+  \item \textbf{开放任务自动评测仍偏弱。} 字段覆盖和 URL 数量检查只能判断答案形式，无法完全判断证据真实性和推荐合理性；Bilibili hard 与旅游 hard 仍需人工或更强 LLM judge 结合 trace 复核。
+  \item \textbf{跨模型输入尚未完全归一。} 视觉模型需要处理截图与 SoM，文本模型只接收 DOM、A11y 和页面文本；这符合各自接口能力，但 token 预算与输入信息量仍会影响横向可比性。
+  \item \textbf{真实网站不可控。} B 站推荐、携程页面和搜索结果随时间、地区、登录状态和反爬策略变化，导致重复运行的可比性下降。
+  \item \textbf{复杂页面操作仍不稳定。} 筛选器、下拉框、悬浮弹窗和懒加载列表会使候选元素提取不完整；模型有时会依赖猜测 URL 参数，而不是逐步操作可见控件。
+  \item \textbf{复杂报告生成可能放大错误。} 当最终答案含有未核实事实时，HTML report 会使结果显得更完整，因此必须在生成前保留严格证据约束。
+\end{enumerate}
+
+\subsection{后续工作}
+
+\textbf{第一，评测更严格。} 对 CSRankings 类封闭任务继续维护确定性 validator；对 Bilibili 和旅游规划任务，引入同时读取最终答案、trace 中访问 URL、截图序列和任务标准的 LLM-as-judge，并报告自动层与复核层两套结果。
+
+\textbf{第二，感知更稳定、更轻量。} 优化候选元素过滤和 SoM 布局，区分 viewport 内、屏幕外可滚动及弹窗元素；对视觉模型采用压缩单图和高价值元素摘要，对纯文本模型清洗 A11y 与页面文本，从而降低上下文超限风险。
+
+\textbf{第三，规划更可控。} 将复杂任务拆为 planner 和 executor 两层：planner 先生成 checklist 与证据需求，executor 逐项收集证据；每完成一个字段就写入带 URL 和截图引用的结构化 notebook，最终答案仅引用已核验事实。
+
+\subsection{总结}
+
+\projectname{} 已从最小浏览器闭环扩展为可运行、可评测、可回放的网页多模态 Agent 系统。它将网页截图、DOM 候选元素、Accessibility Tree、SoM 标注图和页面文本组合成混合观察空间，用结构化 JSON 动作和安全校验约束模型行为，并通过 Progress Checker、Final Verifier、YAML 任务管理、批量评测和 HTML trace report 支撑课程要求的成功率统计、失败分类和可视化轨迹。
+
+从实验结果来看，\projectname{} 已能够支撑不同模型在真实网页任务中的系统化比较。DeepSeek V4 Pro 的 90 次重复评测表明，同一模型在不同难度任务上的能力分化非常明显：easy/medium 信息检索任务较稳定，而 CSRankings hard 这类长链统计与严格验证任务会暴露其规划和证据组织能力瓶颈；GPT-5.5 九任务全通过，体现了强模型在复杂网页任务中的综合完成能力；十模型横向实验则进一步说明，信息抽取任务整体更稳定，而 hard 任务仍主要受长链规划、证据管理和网页环境稳定性限制。这也说明，真实网页 Agent 的评测不能只看最终是否完成任务，还需要结合中间轨迹、证据来源和失败类型，才能更准确地分析模型在复杂网页环境中的实际能力。

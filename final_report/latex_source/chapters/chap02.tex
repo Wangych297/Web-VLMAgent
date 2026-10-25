@@ -1,0 +1,49 @@
+﻿% !TEX root = ../main.tex
+
+\section{相关工作}
+
+\subsection{真实网页任务与评测环境}
+
+网页 Agent 的研究首先需要可复现的任务环境。Mind2Web~\cite{mind2web} 收集跨 137 个网站的真实网页操作轨迹，强调真实 HTML 往往很长，模型需要先筛选候选元素再预测动作。WebArena~\cite{webarena} 构建了可自托管的真实感网页环境，通过端到端任务成功率评价 Agent。VisualWebArena~\cite{visualwebarena} 在此基础上加入视觉密集任务，说明仅依赖 DOM 文本难以理解图标、图片、空间布局和视觉状态。
+
+WebVoyager~\cite{webvoyager} 更接近本项目的目标：它直接面向真实在线网站，使用网页截图和 Accessibility Tree 构建观察，并用大模型执行连续网页操作。BrowserGym/AgentLab~\cite{browsergym} 则提供标准化 WebAgent 实验接口，对 observation space、action space、任务初始化和批量实验管理有很强参考价值。我们的系统没有直接复用这些 benchmark，而是吸收其任务组织方式：每个任务显式定义起始 URL、自然语言目标、最大步数、成功标准、禁止动作和 trace 输出。
+
+\subsection{界面理解与 Grounding}
+
+网页操作的关键瓶颈是 grounding：模型可能知道“应该点击搜索框”或“应该展开某个学校”，但无法稳定定位到页面上的准确元素。SeeAct~\cite{seeact} 研究了多模态模型作为网页 Agent 时的 grounding 问题，提出将视觉理解与候选元素定位结合。Set-of-Marks~\cite{som} 通过在图像上叠加编号标记，把“点击某个视觉区域”转化为“选择某个编号”，降低了直接坐标预测的难度。
+
+\projectname{} 采用类似思想：DOM 提取器从页面中筛选按钮、链接、输入框、文本框、下拉框以及常见 ARIA role 元素，记录每个候选元素的编号、标签、角色、文本、选择器、bbox、可见性和可用性；SoM 模块再把可见且面积合理的元素绘制成编号框。模型最终只能通过 \jsonkey{target\_id} 引用候选元素，执行器会在真实点击前再次确认该编号存在、可见且可用。
+
+\subsection{推理-行动闭环}
+
+ReAct~\cite{react} 将推理和行动交替组织，使模型在每一步先根据观察产生简短 thought，再选择一个工具动作。这种方式适合网页任务，因为网页状态会在每次点击、输入、滚动后改变，模型不能一次性可靠预测完整动作序列。我们采用“单步 ReAct + 外部循环”的方式：模型每次只输出一个 JSON 动作，循环逻辑、浏览器执行、失败检测和 trace 保存由宿主程序控制。
+
+与端到端坐标 Agent 相比，这种设计更工程化，也更容易调试。若模型输出非法 JSON，Agent 层会保存 \texttt{raw\_response.txt}，自动重试一次；若仍失败，则退化为安全 \jsonkey{wait} 动作。若模型输出了不存在的 \jsonkey{target\_id}，执行器会拒绝执行并记录 grounding error，而不是盲目点击。
+
+\subsection{GUI Agent 的扩展启发}
+
+OSWorld~\cite{osworld}、Windows Agent Arena~\cite{windowsarena} 和 AndroidWorld~\cite{androidworld} 把 Agent 从网页扩展到桌面和移动系统，强调真实环境、任务初始化、状态检查和轨迹级错误分析。UI-TARS~\cite{uitars}、OmniParser~\cite{omniparser}、SeeClick~\cite{seeclick} 等工作进一步说明，界面元素解析和视觉 grounding 是 GUI Agent 的核心能力。虽然本项目聚焦浏览器网页，不引入 OSWorld 或 PyAutoGUI，但借鉴了这些工作的两个原则：一是操作必须在真实环境中执行验证，二是失败必须能追溯到具体观察和动作。
+
+\begin{table}[H]
+  \centering
+  \caption{代表性相关工作与本项目对应模块}
+  \label{tab:related-work}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.22\textwidth}p{0.30\textwidth}Y}
+    \toprule
+    方向 & 代表工作 & 对本项目的启发 \\
+    \midrule
+    网页任务数据集 & Mind2Web~\cite{mind2web}、WebLINX~\cite{weblinx} & 真实网站任务、候选元素筛选、动作历史建模 \\
+    网页评测环境 & WebArena、VisualWebArena & 端到端成功率、视觉网页任务、执行式验证 \\
+    真实网页 Agent & WebVoyager、SeeAct & 截图 + A11y + VLM 的操作闭环，元素 grounding \\
+    视觉标注增强 & Set-of-Marks & 将视觉区域转化为编号选择，降低坐标定位难度 \\
+    推理行动框架 & ReAct & 单步观察、思考、行动、反馈的多步任务循环 \\
+    实验框架 & BrowserGym/AgentLab & 标准化 observation/action space、批量实验和报告输出 \\
+    通用 GUI Agent & OSWorld、UI-TARS、OmniParser & 轨迹级错误分析、屏幕解析、状态检查 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{本项目与已有工作的区别}
+
+本项目不是构造一个新的大型 benchmark，也不训练新的 VLM；目标是在课程项目规模内实现一个可运行、可评测、可展示的网页多模态 Agent 原型。因此我们更强调工程闭环和可复盘性：真实网页任务来自 CSRankings、Bilibili 和旅行网站；模型通过 OpenAI-compatible API、DeepSeek 或 Gemini 等代理接入；浏览器执行由 Playwright 负责；评测脚本把确定性任务和开放任务分开处理。这样的设计使系统既能满足课程项目的要求，也能作为后续扩展到更多模型和更多网站的实验平台。

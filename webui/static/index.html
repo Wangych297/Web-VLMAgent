@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web-VLMAgent Workbench</title>
+    <link rel="stylesheet" href="/styles.css?v=20260617-rollback1" />
+  </head>
+  <body class="workbench-shell">
+    <aside class="rail">
+      <div class="brand-block">
+        <div class="brand-mark">WM</div>
+        <div>
+          <strong>Web-VLMAgent</strong>
+          <span>Multimodal Agent Studio</span>
+        </div>
+      </div>
+
+      <button id="newTaskButton" class="primary-button wide" type="button">新建任务</button>
+
+      <label class="search-box">
+        <span>历史记录</span>
+        <input id="runSearch" placeholder="搜索 task / site / status" />
+      </label>
+
+      <div id="runList" class="run-list"></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Agent Workspace</p>
+          <h1 id="runTitle">选择一个任务或新建运行</h1>
+        </div>
+        <div class="header-controls">
+          <span id="runState" class="run-state">idle</span>
+          <button id="refreshRuns" class="ghost-button" type="button">刷新</button>
+        </div>
+      </header>
+
+      <section id="newTaskPanel" class="task-composer">
+        <div class="composer-copy">
+          <p class="eyebrow">Web Agent</p>
+          <h2>让 Agent 从网页开始执行任务</h2>
+        </div>
+        <div class="composer-main">
+          <div id="chatMessages" class="chat-messages composer-chat-messages"></div>
+          <form id="unifiedComposerForm" class="unified-composer-form">
+            <textarea
+              id="unifiedInput"
+              rows="2"
+              required
+              placeholder="输入任务、回复 Agent、补充信息，或修改执行计划..."
+            >查询今天北京天气，回答风力等级和风向。</textarea>
+            <button id="approvePlanButton" class="ghost-button approve-button" type="button" hidden>同意，开始执行</button>
+            <button id="stopTaskButton" class="ghost-button stop-button" type="button" hidden>停止</button>
+            <button id="sendComposerButton" class="primary-button launch-button" type="button">发送</button>
+          </form>
+          <div class="settings-toolbar">
+            <button
+              id="taskSettingsToggle"
+              class="ghost-button settings-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="taskSettings"
+            >任务设置</button>
+            <span id="taskSettingsSummary" class="settings-summary">Gemini · gemini-3.5-flash · Playwright</span>
+          </div>
+          <div id="taskSettings" class="task-settings" hidden>
+            <label>
+              起始 URL
+              <input id="taskUrl" placeholder="Auto; leave blank for real-site routing" />
+            </label>
+            <div class="form-row">
+              <label>
+                Provider
+                <select id="taskProvider">
+                  <option value="gemini" selected>Gemini (Vision)</option>
+                  <option value="openai">OpenAI Compatible</option>
+                  <option value="deepseek">DeepSeek</option>
+                </select>
+              </label>
+              <label>
+                Model
+                <select id="taskModel">
+                  <option value="gemini-3.5-flash" selected>gemini-3.5-flash</option>
+                </select>
+              </label>
+              <label>
+                Browser
+                <select id="taskBrowserBackend">
+                  <option value="playwright" selected>Playwright (Auto Browser)</option>
+                  <option value="web_access">Web Access (Real Browser)</option>
+                </select>
+              </label>
+              <label>
+                Initial steps
+                <input id="taskSteps" type="number" min="50" max="50" value="50" />
+              </label>
+              <label class="checkbox-label">
+                <input id="taskHeadless" type="checkbox" checked />
+                Headless
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <section class="viewport-card">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Visual Observation</p>
+              <h2 id="stepTitle">等待选择 step</h2>
+            </div>
+            <div class="segmented">
+              <button id="showMarked" class="active" type="button">SoM 标注图</button>
+              <button id="showRaw" type="button">原始截图</button>
+            </div>
+          </div>
+
+          <div class="screenshot-stage">
+            <img id="stepImage" alt="当前 step 截图" />
+            <div id="emptyVisual" class="empty-visual">
+              <strong>还没有视觉帧</strong>
+              <span>选择左侧历史任务，或新建任务后等待第一步 trace 写入。</span>
+            </div>
+          </div>
+
+          <div class="timeline-header">
+            <span>Step Timeline</span>
+            <button id="jumpLatest" class="text-button" type="button">跳到最新</button>
+          </div>
+          <div id="timeline" class="timeline-strip"></div>
+        </section>
+
+        <aside class="inspector">
+          <section class="task-card">
+            <p class="eyebrow">Task</p>
+            <h2 id="taskText">--</h2>
+            <div class="answer-box">
+              <strong>Answer</strong>
+              <p id="answerText">--</p>
+              <a id="reportLink" class="report-link" href="#" target="_blank" rel="noopener noreferrer" hidden>打开 HTML 报告</a>
+              <button id="reportRetryButton" class="report-link report-button" type="button" hidden>生成 HTML 报告</button>
+            </div>
+            <dl class="metric-list">
+              <div><dt>Start URL</dt><dd id="urlText">--</dd></div>
+              <div><dt>Provider</dt><dd id="providerText">--</dd></div>
+              <div><dt>Model</dt><dd id="modelText">--</dd></div>
+              <div><dt>Browser</dt><dd id="browserText">--</dd></div>
+              <div><dt>Steps</dt><dd id="stepsText">--</dd></div>
+              <div><dt>Duration</dt><dd id="durationText">--</dd></div>
+              <div><dt>Trace</dt><dd id="tracePath">--</dd></div>
+            </dl>
+          </section>
+
+          <section class="action-card">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Action</p>
+                <h2>模型决策</h2>
+              </div>
+              <span id="executionBadge" class="status-chip">--</span>
+            </div>
+            <pre id="actionJson" class="action-json">{}</pre>
+          </section>
+
+          <section class="reason-card">
+            <p class="eyebrow">Checker</p>
+            <div class="reason-block">
+              <strong>Progress</strong>
+              <p id="progressText">--</p>
+            </div>
+            <div class="reason-block">
+              <strong>Final verifier</strong>
+              <p id="verificationText">--</p>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="debug-card">
+        <div id="tabBar" class="tab-bar">
+          <button class="active" data-file="candidates">Candidates</button>
+          <button data-file="accessibility_tree">Accessibility Tree</button>
+          <button data-file="page_text">Page Text</button>
+          <button data-file="prompt">Prompt</button>
+          <button data-file="raw_response">Raw Response</button>
+          <button data-file="execution">Execution</button>
+          <button data-file="progress">Progress</button>
+          <button data-file="final_verification">Final Verification</button>
+        </div>
+        <pre id="detailText" class="detail-text">选择一个 step 查看观察、prompt 和执行结果。</pre>
+      </section>
+    </main>
+
+    <script src="/app.js?v=20260617-rollback1"></script>
+  </body>
+</html>
+

@@ -1,0 +1,11 @@
+% !TEX root = ../main.tex
+
+\begin{abstract}
+本次实验我们选择了课程题目 7“网页多模态 Agent（界面理解+自动操作）”作为小组实验项目，实现了一个面向真实网页任务的 Web Agent 系统 \projectname{}。系统以自然语言任务（prompt）和起始网页为输入，通过 Playwright 控制浏览器，构建包含网页截图、Set-of-Marks 标注图、DOM 候选元素、Accessibility Tree、页面文本片段和动作历史的混合观察空间（observation space）；模型侧采用 ReAct 风格单步决策，输出受约束的结构化 JSON 动作；执行侧在每一步进行动作合法性校验、安全拦截、候选元素定位、进度检查和完成验证，并保存完整 trace。项目进一步实现了 YAML 任务管理、批量运行、指标统计、确定性答案校验、开放任务字段覆盖校验以及 HTML 轨迹回放。
+
+相较于课程最低要求中“选择 1--2 个真实网站、每站至少 3 个任务、统计成功率并提供截图序列”的标准，我们设计了三类真实网站场景共 9 个任务：CSRankings、Bilibili 与广州旅游规划，每类各包含1个 easy、medium、hard 难度的任务。评测体系除任务成功率外，还记录平均步数、平均用时、动作 JSON 合法率、grounding error rate、纠错重试成功率和失败类型分布等。模型评测方面，我们首先使用 DeepSeek V4 Pro 对 9 个任务各运行 10 次，共 90 次。其中 76 次成功（成功率为 84.44\%），平均 12.7611 步、439.5247 秒，失败类型为 planning 13 次、perception 1 次。随后使用 GPT-5.5 对 9 个任务各运行一次：主流程均正常结束，success rate 为 9/9，平均 10.89 步、721.10 秒。最后选取 10 个来自 OpenAI、Google、Anthropic、Qwen、DeepSeek、Kimi、GLM 和豆包系列的模型，对 9 个任务构成的 90 个模型--任务组合进行了横向测试。这一系列的评测，很好地展示了相关模型能力的差异。
+
+本次报告给出系统架构、observation space 与 action space 设计、任务定义、评测口径、DeepSeek V4 Pro 重复评测、GPT-5.5 SOTA 基线、十模型横向评测结果、失败类型分析及可视化轨迹来源。任务评测方面，确定性信息检索任务（比如 csranking 的三个任务）可以借助脚本严格判分，而开放式网页任务（bilibili 任务与广州旅游规划任务）必须结合字段覆盖、访问证据与人工或 LLM-as-judge 复核；长链任务的主要挑战在于计划分解、证据管理和真实网页环境稳定性。因此，本项目不仅展示了一个可运行的多模态网页操作系统，也总结了真实网页环境下 Web Agent 评测需要同时报告自动指标、严格校验与 trace 证据的必要性。
+\end{abstract}
+
+\noindent\textbf{关键词：}网页 Agent；多模态大模型；Playwright；Set-of-Marks；ReAct；批量评测

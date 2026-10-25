@@ -1,0 +1,210 @@
+% !TEX root = ../main.tex
+
+\section{任务设计与评测方案}
+
+\subsection{任务库设计原则}
+
+课程要求每个网站至少 3 个任务。我们没有只选择简单搜索任务，而是按 easy、medium、hard 三档构建任务库，使任务难度逐步增加：easy 任务侧重页面定位和单点信息抽取等简单任务；medium 任务往往需要跨页面查找、比较和结构化字段补全；hard 任务强调长链推理、跨来源验证、候选集合筛选和最终报告生成。
+
+最终主线保留 CSRankings、Bilibili 和广州旅游三个 YAML 任务文件。每个任务统一定义任务标识、网站、难度、起始地址、自然语言说明、最大步数、成功标准和禁止动作。
+
+\begin{table}[H]
+  \centering
+  \caption{最终 9 个评测任务}
+  \label{tab:task-suite}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabularx}{\textwidth}{p{0.15\textwidth}p{0.10\textwidth}p{0.18\textwidth}Y}
+    \toprule
+    场景 & 难度 & task id 摘要 & 任务摘要 \\
+    \midrule
+    CSRankings & easy & NLP professor & 在 2020--2025 年美国 NLP 排名最高学校中寻找论文数最多、排名最靠前的教授，确定性答案为 Graham Neubig。\\
+    CSRankings & medium & CN ML scholar & 找 2015--2025 年中国大陆高校 Machine Learning 排名最高学校中排名最高学者，并补全职位、邮箱、引用量、H-index 和最高引论文标题。\\
+    CSRankings & hard & AI/Sys. faculty & 比较美国高校在 8 个 AI/Systems 方向前 30 名中的均衡性，计算中位数、平均值和最差排名，再找覆盖方向最广的 faculty。\\
+    Bilibili & easy & public video & 从 B 站主页进入公开视频页，返回标题、链接和可见简介；若无简介需明确说明。\\
+    Bilibili & medium & AI top 3 & 打开“人工智能”搜索结果页，读取综合排序前三个 UP 主视频的可见信息，并分析受众与理由。\\
+    Bilibili & hard & bangumi report & 浏览至少 5 个热门原创番剧详情，选 3 个外部站核验，最终选择 1 个推荐对象，获取相关视频下载链接并生成 HTML 展示页。\\
+    广州旅游 & easy & top attraction & 在携程查找广州景点页，返回排序第 1 景点的名称、评分、地址或区域、开放时间或门票提示和详情页 URL。\\
+    广州旅游 & medium & Chimelong & 只使用携程景点页，至少打开 3 个广州长隆相关景点详情，比较评分、地址、开放时间、票务提示并推荐 1 个。\\
+    广州旅游 & hard & two-day plan & 从广州南站进出，基于真实网页规划两天一晚行程；查酒店、餐厅、官方景点页面，给出交通、预算、雨天替换和来源 URL。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{难度划分}
+
+难度不单由步数决定，而由“状态空间、证据要求、判分复杂度”共同决定。CSRankings easy 通常只需展开一个学校列表并读取教师信息；hard 则需要比较 8 个方向的学校排名、计算中位数和平均值，再对 faculty 的 \# Pubs 做覆盖统计。Bilibili 与旅游任务更开放，hard 任务不仅需要浏览多个候选页面，还要跨来源核验和生成最终展示材料。
+
+\begin{table}[H]
+  \centering
+  \caption{Easy/Medium/Hard 分层标准}
+  \label{tab:difficulty}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.14\textwidth}p{0.22\textwidth}Y}
+    \toprule
+    难度 & 典型能力 & 评测重点 \\
+    \midrule
+    Easy & 目标明确，少量页面跳转，单点信息抽取 & 元素定位、滚动、基础阅读、答案是否精确。\\
+    Medium & 多页面跳转、字段补全、候选比较 & 跨页面记忆、来源记录、结构化输出完整性。\\
+    Hard & 长链任务、跨来源验证、复杂计算或报告生成 & 计划分解、证据覆盖、避免循环、开放结果可复核性。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{评测指标与判分口径}
+
+批量运行后，\texttt{eval/metrics.py} 从每个 \texttt{run\_summary.json} 和 step trace 构造 run record，并计算以下指标：
+\begin{itemize}
+  \item \textbf{Task Success Rate (SR)}：harness 判定成功的 run 数 / 总 run 数，反映主循环是否顺利停止并生成答案；
+  \item \textbf{Validated Success Rate}：对确定性任务按答案规则复核后的成功率；
+  \item \textbf{Average Steps / Average Time}：平均动作步数与耗时；
+  \item \textbf{Action JSON Validity Rate}：解析成功且未使用 fallback 的动作步数占比；
+  \item \textbf{Grounding Error Rate}：因 \jsonkey{target\_id} 不存在、不可见或不可用导致的定位错误占比；
+  \item \textbf{Correction/Retry Success Rate}：触发重试或恢复机制后最终成功的比例；
+  \item \textbf{Failure Type Distribution}：将失败归类为 perception、planning、execution、verification、website 五类。
+\end{itemize}
+
+CSRankings 三题属于封闭答案任务，可由脚本严格复核。Bilibili 与广州旅游规划任务具有开放性，页面内容会随时间、推荐系统、地区和登录状态变化，因此先自动检查字段覆盖和来源 URL，再结合 trace 进行人工或 LLM-as-judge 复核。本文明确区分 \textbf{harness success}（流程正常结束）和 \textbf{validator success}（答案通过严格规则）；二者不能混用。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      font=\small,
+      node distance=1.1cm,
+      box/.style={draw, rounded corners=6pt, align=center, minimum width=2.75cm, minimum height=0.9cm, fill=softBlue},
+      green/.style={box, fill=softGreen},
+      orange/.style={box, fill=softOrange},
+      arrow/.style={-{Latex[length=2.3mm]}, thick}
+    ]
+    \node[box] (yaml) {tasks/*.yaml};
+    \node[green, right=of yaml] (runner) {batch runner\\repeat n};
+    \node[orange, right=of runner] (trace) {per-run trace\\step artifacts};
+    \node[box, below=of trace] (metrics) {指标统计};
+    \node[green, left=of metrics] (validator) {答案/字段复核};
+    \node[orange, left=of validator] (report) {汇总/轨迹报告};
+    \draw[arrow] (yaml) -- (runner);
+    \draw[arrow] (runner) -- (trace);
+    \draw[arrow] (trace) -- (metrics);
+    \draw[arrow] (trace) -- (validator);
+    \draw[arrow] (validator) -- (metrics);
+    \draw[arrow] (metrics) -- (report);
+  \end{tikzpicture}
+  \caption{批量评测与报告生成流程}
+  \label{fig:evaluation-pipeline}
+\end{figure}
+
+\subsection{第一轮评测：DeepSeek V4 Pro 九任务重复评测}
+
+我们首先使用 DeepSeek V4 Pro 对9个任务各进行了10次重复评测（以满足此次实验的验收要求）。其中 CSRankings、Bilibili、广州旅游规划三个场景各包含 easy、medium、hard 三个任务，共 9 个任务；每个任务运行 10 次，总计 90 次。评测结果为，90 次中 76 次成功，综合成功率为 \textbf{84.44\%}；平均步数为 12.7611，平均用时为 439.5247 秒；失败 14 次，其中 planning failure 13 次、perception failure 1 次。
+
+\begin{table}[H]
+  \centering
+  \caption{DeepSeek V4 Pro 正式评测场景级结果}
+  \label{tab:deepseek-scenario}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.24\textwidth}p{0.14\textwidth}p{0.14\textwidth}p{0.14\textwidth}Y}
+    \toprule
+    场景 & 运行次数 & 成功次数 & 成功率 & 说明 \\
+    \midrule
+    CSRankings & 30 & 20 & 66.67\% & easy 与 medium 均成功，hard 任务 10 次均失败。\\
+    广州旅游规划 & 30 & 26 & 86.67\% & medium 失败 3 次，hard 失败 1 次。\\
+    Bilibili & 30 & 30 & 100.00\% & 三个难度均成功。\\
+    合计 & 90 & 76 & 84.44\% & 失败总数 14 次。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{DeepSeek V4 Pro 正式评测任务级结果}
+  \label{tab:deepseek-repeat}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabularx}{\textwidth}{p{0.18\textwidth}Yp{0.08\textwidth}p{0.10\textwidth}p{0.10\textwidth}p{0.11\textwidth}p{0.13\textwidth}}
+    \toprule
+    场景/难度 & 任务 & 次数 & 成功 & 成功率 & 平均步数 & 备注 \\
+    \midrule
+    CS easy & NLP top professor & 10 & 10 & 100\% & 3.4 & 平均用时 186.19 秒。\\
+    CS medium & CN ML scholar profile & 10 & 10 & 100\% & 8.1 & 平均用时 308.29 秒。\\
+    CS hard & AI/Systems balanced faculty & 10 & 0 & 0\% & 22.4 & 规划失败 10 次，9 次卡住，1 次请求人工输入。\\
+    GZ easy & Ctrip top attraction & 10 & 10 & 100\% & 5.1 & 平均用时 235.94 秒。\\
+    GZ medium & Chimelong sights comparison & 10 & 7 & 70\% & 10.7 & 规划失败 3 次。\\
+    GZ hard & two-day real web plan & 10 & 9 & 90\% & 34.1 & 感知失败 1 次，平均用时 1119.67 秒。\\
+    Bili easy & public video intro & 10 & 10 & 100\% & 2.2 & 平均用时 235.37 秒。\\
+    Bili medium & AI search audience & 10 & 10 & 100\% & 2.6 & 平均用时 287.21 秒。\\
+    Bili hard & bangumi HTML recommendation & 10 & 10 & 100\% & 26.25 & 平均用时 708.60 秒。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+从 DeepSeek V4 Pro 的结果可以看到三类模式。第一，CSRankings easy/medium、广州 easy 和 Bilibili 三个任务都达到 100\%，说明在页面可访问且目标清晰时，文本观察空间已经足以支撑稳定的信息抽取和结构化回答。第二，CSRankings hard 的 0\% 是最明显瓶颈：该任务要求跨 8 个方向收集排名、筛选学校、计算统计量，并继续比较 faculty 覆盖方向数，失败主要来自长链规划和中间证据组织不足。第三，开放式长任务并不一定失败，但成本显著更高，例如广州 hard 平均 34.1 步、1119.67 秒，Bilibili hard 平均 26.25 步、708.60 秒，说明长任务评测必须同时报告成功率、步数、耗时和失败类型。
+
+\subsection{GPT-5.5 九任务基线评测}
+
+我们接着使用 \texttt{gpt-5.5} 以 vision observation mode 对 9 个正式任务各运行一次（为了节省时间与金钱所以只评测了一次，用 gpt-5.5 评测9个任务各一次大概需要花费90元）。最终评测结果表明, gpt-5.5 在全部 9 个任务上均取得了成功，平均步数为 10.89 步，平均用时约 721.10 秒，且没有出现 grounding error。这说明在网页可访问、视觉输入和上下文预算正常的条件下，强模型能够完成三类网站任务；其中 Bilibili hard 与广州 hard 也完成了多页面证据收集和最终结构化输出。
+
+\begin{table}[H]
+  \centering
+  \caption{GPT-5.5 九任务基线结果}
+  \label{tab:gpt55-baseline}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.33\textwidth}p{0.12\textwidth}p{0.14\textwidth}p{0.11\textwidth}Y}
+    \toprule
+    任务 & 难度 & success & 步数 & 复核结论 \\
+    \midrule
+    CSRankings NLP professor & easy & 成功 & 3 & validator 通过，答案为 Graham Neubig。\\
+    CSRankings ML profile & medium & 成功 & 15 & validator 通过，朱军档案字段匹配。\\
+    CSRankings AI/Sys. faculty & hard & 成功 & 20 & validator 通过，长链统计过程完全正确。\\
+    Bilibili public video intro & easy & 成功 & 2 & 字段覆盖 1.0，需结合 trace 复核具体视频页。\\
+    Bilibili AI search top 3 audience & medium & 成功 & 1 & 字段覆盖 1.0，从搜索页可见信息完成分析。\\
+    Bilibili bangumi HTML & hard & 成功 & 20 & 字段覆盖 1.0，完成候选浏览、外部核验和 HTML 输出。\\
+    Ctrip top attraction & easy & 成功 & 4 & 字段覆盖 1.0，返回景点、评分、地址与详情页。\\
+    Ctrip Chimelong compare & medium & 成功 & 6 & 字段覆盖 1.0，完成多景点详情页对比。\\
+    Guangzhou two-day plan & hard & 成功 & 27 & 字段覆盖 1.0，完成酒店、餐饮、景点与路线规划。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{十模型横向评测}
+
+我们随后选取 10 个多样化模型进行横向评测，覆盖 OpenAI、Google Gemini、Anthropic Claude、Qwen、DeepSeek、Kimi、GLM 和豆包系列。视觉模型为 GPT-4o mini、GPT-5 mini、Gemini 2.5 Flash、Claude Haiku 4.5、Qwen3-VL-32B 与豆包 Vision Pro；文本模型为 DeepSeek-V4-Pro、Qwen3.7-Max、Kimi-K2.6 与 GLM-5.2。完整 API 名称见表~\ref{tab:model-valid-results}。前 6 个按 vision mode 运行，后 4 个按 text mode 运行。9 个任务与 10 个模型构成 90 个计划的模型--任务组合。
+
+我们在此次评测中也遇到了诸如中转站超时、内容安全拦截、上下文超限等服务层问题，为了避免误计为模型能力失败，我们把每个组合标记为 \textbf{valid}、\textbf{invalid} 或 \textbf{incomplete}。表~\ref{tab:model-valid-results} 先汇报可正常取得完整 trace 的有效样本：``CS（有效/严格成功）'' 的分母为 3 个 CSRankings 任务；``开放（有效/完成）'' 的分母为 Bilibili 与广州的 6 个任务。
+
+\begingroup
+\small
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{p{0.15\textwidth}p{0.07\textwidth}p{0.10\textwidth}p{0.11\textwidth}p{0.065\textwidth}p{0.07\textwidth}p{0.265\textwidth}}
+  \caption{十模型九任务横向评测：有效样本结果}\label{tab:model-valid-results}\\
+  \toprule
+  模型 & 模式 & \makecell[c]{CS\\严格成功} & \makecell[c]{开放\\完成} & 无效 & \makecell[c]{未\\完成} & 有效样本中的主要观察 \\
+  \midrule
+  \endfirsthead
+  \toprule
+  模型 & 模式 & \makecell[c]{CS\\严格成功} & \makecell[c]{开放\\完成} & 无效 & \makecell[c]{未\\完成} & 有效样本中的主要观察 \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  gpt-4o-mini & vision & 3/0 & 6/2 & 0 & 0 & CS hard 与开放 medium/hard 易进入动作循环，规划稳定性不足。\\
+  gpt-5-mini & vision & 3/2 & 6/4 & 0 & 0 & easy/medium 较稳；CS hard 与广州 hard 仍暴露长链统计和多源规划问题。\\
+  gemini-2.5-flash & vision & 3/1 & 6/3 & 0 & 0 & 可完成部分阅读任务，但在广州 medium/hard 与 B 站 hard 中出现证据收集循环。\\
+  claude-haiku-4-5 & vision & 3/1 & 0/0 & 6 & 0 & 开放任务输入超限，不能直接纳入开放任务能力比较；CS hard 未过严格校验。\\
+  qwen3-vl-32b & vision & 3/2 & 6/4 & 0 & 0 & CS easy/medium 与 B 站任务较好，广州 medium/hard 的真实网页导航仍不稳定。\\
+  doubao-vision-pro & vision & 0/0 & 0/0 & 9 & 0 & 图文总 token 超限，当前配置下无可比较有效样本。\\
+  DeepSeek-V4-Pro & text & 3/2 & 6/5 & 0 & 0 & 纯文本模式表现稳健，说明 DOM/A11y/page text 对信息型任务有较强支撑。\\
+  qwen3.7-max & text & 2/2 & 5/5 & 2 & 0 & 有效样本均完成，但广州 hard 出现内容安全拦截，需要补跑。\\
+  kimi-k2.6 & text & 2/2 & 3/2 & 2 & 2 & 有效样本尚可，但服务超时和长任务未完成影响正式统计。\\
+  GLM-5.2 & text & 2/2 & 4/3 & 3 & 0 & easy 与 B 站 medium 较好；广州 medium 超时、广州 hard 被内容拦截。\\
+\end{longtable}
+\endgroup
+
+从有效样本可得出三点结论。第一，\textbf{确定性答案任务比开放任务更能暴露“答对没有”}：CSRankings easy/medium 对强文本模型和部分视觉模型并不困难，但 hard 要求稳定完成 8 个方向排名统计和 faculty 覆盖度比较，多个模型出现了流程完成但最终实体或字段不匹配的问题。第二，\textbf{视觉输入并不必然带来更高成功率}：在当前 observation 较重的设置下，视觉模型还要承担截图和 SoM 图像成本；而 DeepSeek-V4-Pro、qwen3.7-max 等文本模型依靠 DOM candidates、Accessibility Tree 和页面文本，在若干信息抽取任务中取得了稳定结果。第三，\textbf{开放长链任务的主要失败不是 JSON 格式错误，而是规划和证据管理}：典型失败是重复点击同一入口、在搜索页和详情页之间循环，或收集到局部证据后未及时转向下一子目标，说明 checklist 和历史证据回灌仍需进一步结构化为可检索 notebook。
+
+\subsection{十模型评测中的无效样本与风险}
+
+在报告有效样本结论之后，还必须单独说明不可归因为模型能力的技术问题。第一类是 \textbf{API read timeout}，如 \texttt{kimi-k2.6} 的 Bilibili medium、\texttt{GLM-5.2} 的广州 medium：请求已发出，但中转站或上游模型在超时时间内没有返回。第二类是 \textbf{HTTP 400 内容安全拦截}，如 \texttt{qwen3.7-max} 和 \texttt{GLM-5.2} 在广州 hard 中被上游安全策略拦截；真实网页文本中下载链接、支付、登录、预约等敏感词可能共同触发代理侧策略，不能直接解释为规划能力差。第三类是 \textbf{上下文或图文 token 超限}：\texttt{claude-haiku-4-5} 的 6 个开放任务、\texttt{doubao-1-5-vision-pro-32k} 的多个任务因此无效。
+
+造成 token 超限的直接原因是当前 vision mode 的 observation 较重：每一步会同时发送任务、动作历史、候选元素、页面文本、Accessibility Tree、raw screenshot 与 marked screenshot。以 Bilibili easy 为例，Claude 的第一步 prompt 文本约 55 KB、Accessibility Tree 约 36 KB、候选元素约 25 KB，两张截图接近 1.9 MB；经 base64 和代理侧估算后约为 428k tokens，超过上下文限制。我们当前的 observation space 内容非常丰富，一方面这可以为强上下文模型提供更加丰富的信息，但是另一方面这也导致了短上下文模型输入超限而造成任务失败。后续如果想评测此类模型，可能需要专门针对其简化observation space 设计。
+

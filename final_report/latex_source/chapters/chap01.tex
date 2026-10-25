@@ -1,0 +1,104 @@
+﻿% !TEX root = ../main.tex
+
+\section{引言}
+
+\subsection{任务背景}
+
+多模态大模型正在从“看图回答问题”走向“理解界面并执行操作”。网页是最典型也最复杂的图形用户界面之一：页面同时包含文本、按钮、表单、弹窗、图片、布局层级和动态加载内容；用户任务又往往不是单步问答，而是需要跨页面搜索、筛选、比较、记录证据并生成最终答案。因此，网页 Agent 的难点不只是让模型读懂页面，而是让模型在真实浏览器环境中稳定完成“观察、规划、操作、检查、验证”的闭环。
+
+本课程题目 7 要求设计网页多模态 Agent：基于网页截图/结构信息和自然语言指令，生成点击、输入、滚动等浏览器操作并完成具体任务。课程给出的最低验收标准包括：选择 1--2 个真实网站，每个网站至少 3 个任务场景；每个场景至少 10 次独立测试，总测试不少于 60 次；报告任务成功率；分类记录识别失败、规划失败和执行失败；提供截图序列与动作序列等可视化操作轨迹。
+
+我们实现的 \projectname{} 将该要求进一步工程化：系统不只演示若干成功案例，而是把网页任务抽象为可配置的 YAML episode，把每一步观察、模型响应、结构化动作、执行结果、进展检查和完成验证都写入 trace，从而支持批量评测、错误分析和轨迹回放。
+
+\begin{table}[H]
+  \centering
+  \caption{课程最低要求与本项目实现目标对照}
+  \label{tab:course-requirement}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.27\textwidth}YY}
+    \toprule
+    维度 & 课程最低要求 & 本项目实现与扩展 \\
+    \midrule
+    网站与任务 & 1--2 个真实网站，每站至少 3 个任务 & 3 类真实网站/场景，共 9 个任务，均按 easy/medium/hard 分层 \\
+    运行方式 & 浏览器自动化演示 & Playwright/CDP 浏览器环境，结构化动作执行，支持 headless 与可视化运行 \\
+    观察信息 & 网页截图/结构信息 & 原始截图、SoM 标注截图、DOM 候选元素、Accessibility Tree、页面文本、动作历史 \\
+    评测指标 & 至少成功率 & 成功率、平均步数、平均用时、动作 JSON 合法率、定位错误率、纠错成功率、失败类型分布 \\
+    轨迹材料 & 截图序列 + 动作序列 & 每步保存 screenshot、marked screenshot、candidates、prompt、raw response、parsed action、execution result、progress check、final verification \\
+    安全约束 & 未明确展开 & 拦截登录、支付、购买、删除、敏感信息提交、验证码绕过等高风险行为 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{问题定义}
+
+一个网页任务 episode 由五部分组成：
+\begin{enumerate}
+  \item 起始地址 $u_0$，例如 CSRankings 的过滤页面或 B 站搜索结果页；
+  \item 自然语言任务指令 $I$，描述用户希望获得的最终结果；
+  \item 最大步数 $T$，防止模型陷入无限循环；
+  \item 成功标准 $C$，可以是确定性答案、字段覆盖、页面证据数量或开放式人工复核标准；
+  \item 禁止动作集合 $F$，例如登录、支付、下单、删除、提交敏感信息等。
+\end{enumerate}
+
+\subsection{团队分工}
+
+本项目由三名成员协作完成，分工围绕系统架构、任务设计、工程实现、评测分析与展示材料展开，如表~\ref{tab:team-contribution} 所示。
+
+\begin{table}[H]
+  \centering
+  \caption{团队成员分工}
+  \label{tab:team-contribution}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.15\textwidth}p{0.24\textwidth}Y}
+    \toprule
+    成员 & 负责方向 & 贡献说明 \\
+    \midrule
+    \textbf{王胜伟} & 项目架构与基线搭建、csranking任务设计、模型评测与报告撰写 & 负责 Agent 架构、评测系统和实验流程设计；搭建项目基线，实现 Playwright 浏览器环境、结构化动作、trace 保存和批量评测；设计并实现 CSRankings easy/medium/hard 三个任务，完成大部分评测、结果整理、错误分析、文献与项目调研、开题报告及最终报告主要撰写，同时负责展示答辩与代码整理。\\
+    \addlinespace[0.35em]
+    \textbf{王一澄} & 项目工程化完善与广州旅行任务设计、PPT制作与上台展示 & 对项目进行整体工程化改造，完善多模态输入、真实浏览器后端、长任务 runner、checklist、Progress Checker、Final Verifier、WebUI 和 HTML 报告；扩展 raw screenshot、SoM、Accessibility Tree 与 DOM candidates 联合 observation，以及 Playwright/CDP/WebAccess 后端和 navigate/search/ask\_user 动作；设计并实现广州旅游 easy/medium/hard 任务，负责开题与期末 PPT 并完成两次展示。\\
+    \addlinespace[0.35em]
+    \textbf{吴乐超} & Bilibili 任务设计与实验协作 & 负责 Bilibili easy/medium/hard 三个任务的设计与实现；参与项目代码实现、deepseek-v4 评测实验、结果核验、数据分析和实验报告撰写。\\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+在第 $t$ 步，Agent 从浏览器获得观察 $o_t$，模型输出结构化动作 $a_t$，执行器验证并执行动作，浏览器转移到新状态 $s_{t+1}$。若模型输出 \jsonkey{answer} 或 \jsonkey{done}，系统调用 Final Verifier 检查最终答案是否有页面证据支持；若达到最大步数或被判定为卡住，系统生成失败/部分完成结果并保留 trace。整个过程可以概括为：
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      node distance=1.7cm,
+      box/.style={draw, rounded corners=6pt, align=center, minimum width=2.9cm, minimum height=0.95cm, fill=softBlue},
+      check/.style={draw, rounded corners=6pt, align=center, minimum width=2.9cm, minimum height=0.95cm, fill=softGreen},
+      warn/.style={draw, rounded corners=6pt, align=center, minimum width=2.9cm, minimum height=0.95cm, fill=softOrange},
+      arrow/.style={-{Latex[length=2.6mm]}, thick}
+    ]
+    \node[box] (observe) {Observe\\截图/DOM/A11y/SoM};
+    \node[box, right=of observe] (plan) {Plan\\ReAct 单步决策};
+    \node[warn, right=of plan] (act) {Act\\JSON 校验与执行};
+    \node[check, below=of act] (check) {Check\\进展与卡住检测};
+    \node[check, left=of check] (verify) {Verify\\最终答案验证};
+    \node[box, left=of verify] (trace) {Trace\\截图、动作、日志};
+    \draw[arrow] (observe) -- (plan);
+    \draw[arrow] (plan) -- (act);
+    \draw[arrow] (act) -- (check);
+    \draw[arrow] (check) -- node[right]{未完成} ++(0,-0.9) -| (observe);
+    \draw[arrow] (check) -- (verify);
+    \draw[arrow] (verify) -- (trace);
+    \draw[arrow] (trace) -- ++(0,0.9) -| node[above]{复盘/评测} (observe);
+  \end{tikzpicture}
+  \caption{\projectname{} 的闭环问题定义}
+  \label{fig:closed-loop}
+\end{figure}
+
+\subsection{项目贡献}
+
+本项目的主要贡献如下。
+
+\begin{enumerate}
+  \item \textbf{实现了最小可运行到批量评测的完整闭环。} 从 Phase 1 的 Playwright 浏览器环境、候选元素提取和 mock agent，到 Phase 5 的 YAML 任务管理、批量 runner、指标统计与 HTML trace report，形成了端到端可运行系统。
+  \item \textbf{设计了混合观察空间。} 对视觉模型提供原始截图和 SoM 标注图，对纯语言模型提供候选元素、页面文本和 Accessibility Tree，使不同能力模型可以在同一动作接口下比较。
+  \item \textbf{将动作空间约束为结构化 JSON。} 模型不能执行任意代码，也不能直接发出鼠标坐标；所有 click/type 都必须引用当前候选元素的 \jsonkey{target\_id}，并通过安全校验。
+  \item \textbf{构造了 9 个分层真实网页任务。} 创新性地设计了3个场景并引入了 easy/medium/hard 任务分层机制，其中 CSRankings 任务适合确定性答案评测；Bilibili 和广州旅游规划任务更开放，用来考察跨页面信息收集、证据保存和长答案生成能力。
+  \item \textbf{评测可追溯可复盘。} 每一次运行都保存截图序列、标注图、候选元素、prompt、模型原始输出、解析后动作和执行结果；评测报告可以定位失败发生在识别、规划、执行、验证还是网站环境环节。
+\end{enumerate}

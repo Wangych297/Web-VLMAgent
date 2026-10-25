@@ -1,0 +1,198 @@
+﻿% !TEX root = ../main.tex
+
+\section{系统设计与实现}
+
+\subsection{总体架构}
+
+\projectname{} 的代码按浏览器执行、感知标注、模型调用、Agent 决策、评测与可视化回放分层组织。核心运行入口覆盖单任务、批量评测和多模型套件。单任务运行时，系统从 YAML 任务或命令行读取起始 URL、任务指令、最大步数、模型 provider 和 observation mode；随后启动浏览器，进入 Observe--Plan--Act--Check--Verify 循环。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      font=\small,
+      layer/.style={draw, rounded corners=7pt, align=center, text width=2.35cm, minimum width=2.70cm, minimum height=1.05cm},
+      module/.style={draw, rounded corners=5pt, align=center, minimum width=3.0cm, minimum height=0.8cm, fill=white},
+      arrow/.style={-{Latex[length=2.4mm]}, thick}
+    ]
+    \node[layer, fill=softBlue] (task) {任务层\\YAML / CLI / max steps};
+    \node[layer, fill=softGreen, right=1.2cm of task] (browser) {浏览器层\\Playwright / CDP};
+    \node[layer, fill=softOrange, right=1.2cm of browser] (obs) {观察构建\\截图 / DOM / A11y / SoM};
+    \node[layer, fill=softBlue, below=1.25cm of obs] (agent) {Agent 层\\Prompt / ReAct / JSON};
+    \node[layer, fill=softGreen, left=1.2cm of agent] (exec) {执行层\\动作校验 / 安全拦截};
+    \node[layer, fill=softOrange, left=1.2cm of exec] (eval) {评测层\\Metrics / Validator / Report};
+    \draw[arrow] (task) -- (browser);
+    \draw[arrow] (browser) -- (obs);
+    \draw[arrow] (obs) -- (agent);
+    \draw[arrow] (agent) -- (exec);
+    \draw[arrow] (exec) -- (browser);
+    \draw[arrow] (exec) -- (eval);
+    \draw[arrow] (eval) -- node[below]{trace replay} (task);
+  \end{tikzpicture}
+  \caption{\projectname{} 模块架构}
+  \label{fig:module-arch}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \caption{核心目录与职责}
+  \label{tab:repo-modules}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.25\textwidth}Y}
+    \toprule
+    目录/文件 & 职责 \\
+    \midrule
+    \texttt{browser/} & Playwright/CDP 浏览器环境、DOM 候选元素提取、动作 schema 与执行校验 \\
+    \texttt{perception/} & Set-of-Marks 标注图生成、候选元素过滤 \\
+    \texttt{models/} & OpenAI-compatible、DeepSeek、Gemini 客户端，统一 chat completion 接口 \\
+    \texttt{agents/} & ReAct prompt、单步 Agent、Progress Checker、Final Verifier、任务 checklist、最终 HTML 报告生成 \\
+    \texttt{eval/} & 单任务 runner、批量 runner、指标统计、validator、summary/report 生成 \\
+    \texttt{scripts/} & demo、SoM demo、单步 Agent、多步任务、批量评测和模型 suite 命令行入口 \\
+    \texttt{tasks/} & 最终保留的 9 个任务 YAML：CSRankings、Bilibili、广州旅游规划 \\
+    \texttt{webui/} & Trace Viewer / Workbench，可查看运行状态与轨迹 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{观察空间}
+
+观察空间决定模型“看见”什么。真实网页任务中，单一模态很容易失效：截图能表示视觉布局，却缺少可执行选择器；DOM 有元素结构，却不一定反映视觉遮挡和用户实际看到的内容；Accessibility Tree 有语义标签，但不总是完整；页面文本适合阅读任务，却难以定位点击对象。因此系统采用混合观察。
+
+\begin{table}[H]
+  \centering
+  \caption{观察空间组成}
+  \label{tab:observation-space}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.22\textwidth}p{0.27\textwidth}Y}
+    \toprule
+    观察项 & 保存文件/字段 & 用途 \\
+    \midrule
+    原始截图 & \texttt{screenshot.png} & 保留页面真实视觉状态、图片、布局、遮挡和弹窗 \\
+    SoM 标注图 & \texttt{marked\_screenshot.png} & 在可见候选元素上绘制编号框，帮助视觉模型选择 \jsonkey{target\_id} \\
+    候选元素列表 & \texttt{candidates.json} & 提供 \jsonkey{element\_id}、tag、role、text、selector、bbox、visible、enabled \\
+    Accessibility Tree & A11y tree & 提供角色、标签、标题、对话框等语义结构 \\
+    页面文本片段 & \texttt{page\_text.txt} / prompt excerpt & 用于阅读、证据抽取、跨页面记忆 \\
+    动作历史 & prompt 中的 compact history & 记录最近动作、URL、执行结果、进展信号和证据摘要 \\
+    任务 checklist & \texttt{checklist.json} & 将开放任务拆成可跟踪的证据项，减少长任务遗忘 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+系统支持三种 observation mode：\texttt{text} 只发送候选元素、页面文本和 A11y 信息，适合无视觉能力的语言模型；\texttt{vision} 额外把原始截图和 SoM 图作为图像输入，适合 Gemini、GPT、Claude、Qwen-VL 等视觉模型；\texttt{auto} 根据 provider 自动选择。这样可以在同一任务上比较纯文本模型与视觉语言模型的差异。
+
+\subsection{候选元素与 Set-of-Marks}
+
+DOM 提取器至少覆盖 button、a、input、textarea、select，以及 role 为 button、link、textbox 的元素和可编辑元素。每个候选元素被赋予稳定的 \jsonkey{element\_id}，并保存页面 bbox。SoM 绘制阶段会过滤不可见元素、面积过小元素和屏幕外元素，然后用 Pillow 绘制轻量编号框。这样模型不需要输出坐标，只需选择编号；执行器再根据 selector 滚动到元素并点击/输入。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      font=\small,
+      item/.style={draw, rounded corners=5pt, minimum width=2.55cm, minimum height=0.82cm, align=center},
+      arrow/.style={-{Latex[length=2.2mm]}, thick}
+    ]
+    \node[item, fill=softBlue] (dom) {DOM 查询\\交互元素};
+    \node[item, fill=softGreen, right=of dom] (bbox) {bbox / visible\\enabled};
+    \node[item, fill=softOrange, right=of bbox] (filter) {过滤\\小/隐藏/屏外};
+    \node[item, fill=softBlue, below=of filter] (mark) {Pillow 绘制\\编号框};
+    \node[item, fill=softGreen, left=of mark] (model) {模型选择\\target\_id};
+    \node[item, fill=softOrange, left=of model] (execute) {执行器校验\\selector 点击};
+    \draw[arrow] (dom) -- (bbox);
+    \draw[arrow] (bbox) -- (filter);
+    \draw[arrow] (filter) -- (mark);
+    \draw[arrow] (mark) -- (model);
+    \draw[arrow] (model) -- (execute);
+  \end{tikzpicture}
+  \caption{候选元素与 Set-of-Marks grounding 流程}
+  \label{fig:som-flow}
+\end{figure}
+
+\subsection{动作空间与安全校验}
+
+动作空间采用结构化 JSON，模型只能输出下列动作：\jsonkey{click}、\jsonkey{type}、\jsonkey{scroll}、\jsonkey{press}、\jsonkey{back}、\jsonkey{wait}、\jsonkey{answer}、\jsonkey{done}、\jsonkey{ask\_user}、\jsonkey{navigate}、\jsonkey{search}。其中 \jsonkey{click} 和 \jsonkey{type} 必须携带合法 \jsonkey{target\_id}；其他动作强制将 \jsonkey{target\_id} 置空。
+
+\begin{table}[H]
+  \centering
+  \caption{动作空间与执行约束}
+  \label{tab:action-space}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.18\textwidth}p{0.25\textwidth}Y}
+    \toprule
+    动作 & 关键字段 & 执行约束 \\
+    \midrule
+    \jsonkey{click} & \jsonkey{target\_id} & 目标必须存在、可见、可用；禁止点击登录、支付、购买、删除、提交等高风险控件 \\
+    \jsonkey{type} & \jsonkey{target\_id}, \jsonkey{text}, \jsonkey{key} & 文本不能为空；禁止向密码、信用卡、地址、真实联系方式等敏感输入框填入信息 \\
+    \jsonkey{scroll} & \jsonkey{direction} & 仅允许 up/down；用于寻找更多候选或页面文本 \\
+    \jsonkey{press} & \jsonkey{key} & 只执行键盘按键，例如 Enter 或 Escape \\
+    \jsonkey{navigate} & \jsonkey{text} & 必须是完整 http/https/file URL，避免模型拼接危险或不完整地址 \\
+    \jsonkey{search} & \jsonkey{text} & 通过搜索引擎查询公开信息，不替代指定网站步骤 \\
+    \jsonkey{answer}/\jsonkey{done} & \jsonkey{text} & 触发 Final Verifier；答案必须尽量由当前页面或历史证据支持 \\
+    \jsonkey{ask\_user} & \jsonkey{text} & 遇到验证码、登录墙、模糊选择或安全风险时暂停询问 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+动作校验由 \texttt{browser/actions.py} 中的 Pydantic schema 和规则函数完成。高风险点击词包括 delete、remove、purchase、buy、pay、checkout、order、subscribe、login、sign in、submit 等；敏感输入词包括 password、credit card、cvv、address、ssn 等。该设计保证即使模型产生危险计划，执行器也不会直接执行。
+
+\subsection{ReAct Prompt 与单步决策}
+
+Agent prompt 明确要求模型“只返回一个 JSON 对象，不要 markdown，不要代码”。输入给模型的信息包括任务指令、当前 URL、截图路径或图像输入、候选元素列表、页面文本、Accessibility Tree、人类提示、任务 checklist 和历史动作摘要。系统 prompt 还包含恢复策略：若页面被弹窗、cookie banner、登录浮层或验证码遮挡，优先选择安全关闭、Escape、等待或 \jsonkey{ask\_user}；若最近动作没有推进页面状态，不要重复同一动作。
+
+\begin{algorithm}[H]
+  \caption{单任务多步运行流程}
+  \label{alg:run-task}
+  \KwIn{起始 URL $u_0$，任务指令 $I$，最大步数 $T$，模型客户端 $M$}
+  \KwOut{run summary, trace artifacts, final answer}
+  打开浏览器并访问 $u_0$\;
+  初始化历史动作、任务 checklist 和 trace 目录\;
+  \For{$t=0$ \KwTo $T-1$}{
+    截图，提取候选元素、页面文本和 Accessibility Tree\;
+    绘制 SoM 标注图并保存当前 step artifacts\;
+    构造 ReAct prompt，调用模型 $M$ 生成一个 JSON 动作\;
+    解析动作；若非法 JSON，则保存原始响应并重试一次\;
+    校验动作 schema、安全规则和 \jsonkey{target\_id}\;
+    执行动作并保存 \texttt{execution\_result.json}\;
+    调用 Progress Checker 判断是否推进页面状态\;
+    \If{动作为 \jsonkey{answer} 或 \jsonkey{done}}{
+      调用 Final Verifier 检查答案证据\;
+      \If{验证通过}{写入成功 summary 并结束}
+    }
+    \If{连续卡住或达到恢复条件}{根据 checklist 生成提示、继续、询问用户或失败退出}
+  }
+  若超出最大步数，生成部分结果并保存失败类型\;
+\end{algorithm}
+
+\subsection{Progress Checker 与 Final Verifier}
+
+Progress Checker 通过 URL、候选元素数量、候选文本签名、截图 hash 等信号判断动作是否改变页面；同时检测重复动作、搜索/导航循环、URL ping-pong、导航参数被网站拒绝等情况。当动作连续没有改变有用状态时，系统会把恢复提示加入下一步 prompt，或在可配置情况下请求用户帮助。
+
+Final Verifier 用于避免模型“自信地宣布完成”。当模型输出 \jsonkey{answer} 时，Verifier 会检查答案文本、URL、页面文本和历史证据是否匹配任务关键词；对中文编码可能受 API 代理影响的场景，还实现了 ASCII/数字片段回退匹配。当模型输出 \jsonkey{done} 时，Verifier 会检查近期是否有成功执行动作、任务中的字面量是否出现在证据中。CSRankings 等确定性任务还会在运行结束后由 \texttt{eval/validators.py} 再做答案级校验。
+
+\subsection{Trace 格式与可视化}
+
+每个 run 保存到 \texttt{traces/task\_run/\{run\_id\}/} 或用户指定目录。每一步的目录结构如下：
+
+\begin{table}[H]
+  \centering
+  \caption{单步 trace 文件}
+  \label{tab:trace-files}
+  \small
+  \begin{tabularx}{\textwidth}{p{0.34\textwidth}Y}
+    \toprule
+    文件 & 含义 \\
+    \midrule
+    \texttt{screenshot.png} & 原始页面截图 \\
+    \texttt{marked\_screenshot.png} & 带候选元素编号的 SoM 标注图 \\
+    \texttt{candidates.json} & 当前可交互候选元素列表 \\
+    \texttt{accessibility\_tree.txt} & 当前页面可访问性树 \\
+    \texttt{page\_text.txt} & 渲染文本与候选文本片段 \\
+    \texttt{prompt.txt} & 发送给模型的文本 prompt \\
+    \texttt{raw\_response.txt} & 模型原始输出，保留非法 JSON 与重试信息 \\
+    \texttt{parsed\_action.json} & 解析后的结构化动作 \\
+    \texttt{execution\_result.json} & 执行是否成功、执行前后 URL、错误类型和异常信息 \\
+    \texttt{progress\_check.json} & 页面是否推进、是否重复/卡住、进展信号 \\
+    \texttt{final\_verification.json} & 终止动作的证据检查结果 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+批量评测完成后，\texttt{eval/report\_generator.py} 会生成 \texttt{summary.csv}、\texttt{summary.md} 和 \texttt{trace\_report.html}。HTML 报告把每个 run 展开为 step-by-step 轨迹，包含截图、标注图、动作、执行结果、进展检查和最终验证，满足课程要求的“可视化操作轨迹（截图序列 + 动作序列）”。

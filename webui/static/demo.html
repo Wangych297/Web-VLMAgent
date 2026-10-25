@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Web-VLMAgent Demo</title>
+  <link rel="stylesheet" href="/demo.css" />
+</head>
+<body>
+  <!-- 顶栏 -->
+  <header>
+    <div class="brand">
+      <span class="logo">WM</span>
+      <div>
+        <h1>Web-VLMAgent</h1>
+        <span class="subtitle">Multimodal Agent Live Demo</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="statusDot" class="dot idle"></span>
+      <span id="statusText">Idle</span>
+    </div>
+  </header>
+
+  <!-- 主区域 -->
+  <main>
+    <!-- 左侧：视觉区 -->
+    <section class="visual-panel">
+      <div class="panel-header">
+        <span class="label">Visual Observation</span>
+        <div class="view-toggle">
+          <button class="toggle-btn active" data-view="marked">SoM 标注</button>
+          <button class="toggle-btn" data-view="raw">原始截图</button>
+        </div>
+      </div>
+      <div class="screen-stage" id="screenStage">
+        <div class="placeholder">
+          <svg viewBox="0 0 80 80"><rect x="10" y="15" width="60" height="45" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="40" y1="60" x2="40" y2="70" stroke="currentColor" stroke-width="2"/></svg>
+          <p>等待 Agent 开始观测...</p>
+        </div>
+        <img id="screenImage" alt="screenshot" hidden />
+      </div>
+    </section>
+
+    <!-- 右侧：信息面板 -->
+    <aside class="info-panel">
+      <!-- 任务卡片 -->
+      <section class="card task-card">
+        <span class="label">Task</span>
+        <p id="taskText" class="task-desc">--</p>
+        <div class="meta-grid">
+          <div><span class="meta-key">URL</span><span id="metaUrl" class="meta-val">--</span></div>
+          <div><span class="meta-key">Provider</span><span id="metaProvider" class="meta-val">--</span></div>
+          <div><span class="meta-key">Steps</span><span id="metaSteps" class="meta-val">--</span></div>
+          <div><span class="meta-key">Status</span><span id="metaStatus" class="meta-val">--</span></div>
+        </div>
+      </section>
+
+      <!-- 思考卡片 -->
+      <section class="card thought-card">
+        <span class="label">Agent Thought</span>
+        <p id="thoughtText" class="thought-text">--</p>
+      </section>
+
+      <!-- 动作卡片 -->
+      <section class="card action-card">
+        <span class="label">Action</span>
+        <div class="action-display">
+          <span id="actionBadge" class="badge">--</span>
+          <span id="actionDetail" class="action-detail">--</span>
+        </div>
+      </section>
+
+      <!-- 验证卡片 -->
+      <section class="card verify-card">
+        <span class="label">Verification</span>
+        <p id="verifyText">--</p>
+      </section>
+    </aside>
+  </main>
+
+  <!-- 底部：Step 时间线 -->
+  <footer>
+    <div class="timeline-header">
+      <span>Step Timeline</span>
+      <span id="stepCount" class="count">0 steps</span>
+    </div>
+    <div id="timeline" class="timeline"></div>
+  </footer>
+
+  <!-- 控制栏 -->
+  <div class="controls">
+    <div class="task-form">
+      <input id="demoUrl" value="https://csrankings.org/#/fromyear/2020/toyear/2025/index?nlp&us" />
+      <textarea id="demoTask" rows="2">查看 2020-2025 年美国高校 Natural Language Processing 领域排名，找到排名最高大学中论文数量最多、排名最靠前的教授，使用 answer 动作回答姓名。</textarea>
+      <select id="demoProvider">
+        <option value="gemini" selected>Gemini (Vision)</option>
+        <option value="openai">OpenAI</option>
+        <option value="deepseek">DeepSeek</option>
+      </select>
+      <button id="startBtn" class="btn-primary">▶ 启动 Agent</button>
+    </div>
+    <div class="playback-controls" id="playControls" hidden>
+      <button id="autoPlayBtn" class="btn-ghost">▶ 自动播放</button>
+      <span id="playSpeed" class="speed">每步 3s</span>
+    </div>
+  </div>
+
+  <script src="/demo.js"></script>
+</body>
+</html>
