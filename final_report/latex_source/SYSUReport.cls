@@ -120,8 +120,6 @@
         \vspace{3cm}
 
         \vspace{0.5cm}
-        \kaishu\Large 组\ 号\ \dlmu[9cm]{\@groupnum} \qquad \\ %组号
-        \vspace{0.5cm}
         \kaishu\Large 姓\ 名\ \dlmu[9cm]{\stuname} \qquad \\ %姓名 
         \vspace{0.5cm}
         \kaishu\Large 学\ 号\ \dlmu[9cm]{\stuid} \qquad  \\ %学号

@@ -1,4 +1,4 @@
-﻿% !TEX root = ../main.tex
+% !TEX root = ../main.tex
 
 \section{引言}
 
@@ -19,7 +19,7 @@
     \toprule
     维度 & 课程最低要求 & 本项目实现与扩展 \\
     \midrule
-    网站与任务 & 1--2 个真实网站，每站至少 3 个任务 & 3 类真实网站/场景，共 9 个任务，均按 easy/medium/hard 分层 \\
+    网站与任务 & 1--2 个真实网站，每站至少 3 个任务 & 3 类真实网站/场景，8 项核心评测任务与 1 项补充探索任务，按难度分层 \\
     运行方式 & 浏览器自动化演示 & Playwright/CDP 浏览器环境，结构化动作执行，支持 headless 与可视化运行 \\
     观察信息 & 网页截图/结构信息 & 原始截图、SoM 标注截图、DOM 候选元素、Accessibility Tree、页面文本、动作历史 \\
     评测指标 & 至少成功率 & 成功率、平均步数、平均用时、动作 JSON 合法率、定位错误率、纠错成功率、失败类型分布 \\
@@ -40,27 +40,8 @@
   \item 禁止动作集合 $F$，例如登录、支付、下单、删除、提交敏感信息等。
 \end{enumerate}
 
-\subsection{团队分工}
-
-本项目由三名成员协作完成，分工围绕系统架构、任务设计、工程实现、评测分析与展示材料展开，如表~\ref{tab:team-contribution} 所示。
-
-\begin{table}[H]
-  \centering
-  \caption{团队成员分工}
-  \label{tab:team-contribution}
-  \small
-  \begin{tabularx}{\textwidth}{p{0.15\textwidth}p{0.24\textwidth}Y}
-    \toprule
-    成员 & 负责方向 & 贡献说明 \\
-    \midrule
-    \textbf{王胜伟} & 项目架构与基线搭建、csranking任务设计、模型评测与报告撰写 & 负责 Agent 架构、评测系统和实验流程设计；搭建项目基线，实现 Playwright 浏览器环境、结构化动作、trace 保存和批量评测；设计并实现 CSRankings easy/medium/hard 三个任务，完成大部分评测、结果整理、错误分析、文献与项目调研、开题报告及最终报告主要撰写，同时负责展示答辩与代码整理。\\
-    \addlinespace[0.35em]
-    \textbf{王一澄} & 项目工程化完善与广州旅行任务设计、PPT制作与上台展示 & 对项目进行整体工程化改造，完善多模态输入、真实浏览器后端、长任务 runner、checklist、Progress Checker、Final Verifier、WebUI 和 HTML 报告；扩展 raw screenshot、SoM、Accessibility Tree 与 DOM candidates 联合 observation，以及 Playwright/CDP/WebAccess 后端和 navigate/search/ask\_user 动作；设计并实现广州旅游 easy/medium/hard 任务，负责开题与期末 PPT 并完成两次展示。\\
-    \addlinespace[0.35em]
-    \textbf{吴乐超} & Bilibili 任务设计与实验协作 & 负责 Bilibili easy/medium/hard 三个任务的设计与实现；参与项目代码实现、deepseek-v4 评测实验、结果核验、数据分析和实验报告撰写。\\
-    \bottomrule
-  \end{tabularx}
-\end{table}
+% Keep published table numbers stable for references to the experiment results.
+\setcounter{table}{2}
 
 在第 $t$ 步，Agent 从浏览器获得观察 $o_t$，模型输出结构化动作 $a_t$，执行器验证并执行动作，浏览器转移到新状态 $s_{t+1}$。若模型输出 \jsonkey{answer} 或 \jsonkey{done}，系统调用 Final Verifier 检查最终答案是否有页面证据支持；若达到最大步数或被判定为卡住，系统生成失败/部分完成结果并保留 trace。整个过程可以概括为：
 
@@ -99,6 +80,6 @@
   \item \textbf{实现了最小可运行到批量评测的完整闭环。} 从 Phase 1 的 Playwright 浏览器环境、候选元素提取和 mock agent，到 Phase 5 的 YAML 任务管理、批量 runner、指标统计与 HTML trace report，形成了端到端可运行系统。
   \item \textbf{设计了混合观察空间。} 对视觉模型提供原始截图和 SoM 标注图，对纯语言模型提供候选元素、页面文本和 Accessibility Tree，使不同能力模型可以在同一动作接口下比较。
   \item \textbf{将动作空间约束为结构化 JSON。} 模型不能执行任意代码，也不能直接发出鼠标坐标；所有 click/type 都必须引用当前候选元素的 \jsonkey{target\_id}，并通过安全校验。
-  \item \textbf{构造了 9 个分层真实网页任务。} 创新性地设计了3个场景并引入了 easy/medium/hard 任务分层机制，其中 CSRankings 任务适合确定性答案评测；Bilibili 和广州旅游规划任务更开放，用来考察跨页面信息收集、证据保存和长答案生成能力。
+  \item \textbf{构造了 8 项核心任务与 1 项补充探索任务。} 核心评测覆盖 CSRankings 信息检索、Bilibili 内容分析与广州旅游规划三个场景；另保留 CSRankings 跨方向统计作为探索性任务，用于检查任务定义和长链证据组织，不纳入核心完成率。
   \item \textbf{评测可追溯可复盘。} 每一次运行都保存截图序列、标注图、候选元素、prompt、模型原始输出、解析后动作和执行结果；评测报告可以定位失败发生在识别、规划、执行、验证还是网站环境环节。
 \end{enumerate}

@@ -4,13 +4,13 @@
 
 ## Evidence and Protocol
 
-The figures below are transcribed from the team's [project report](../final_report/8-%E7%BD%91%E9%A1%B5%E5%A4%9A%E6%A8%A1%E6%80%81Agent-%E7%8E%8B%E8%83%9C%E4%BC%9F%E7%8E%8B%E4%B8%80%E6%BE%84%E5%90%B4%E4%B9%90%E8%B6%85.pdf), Sections 4.3-4.7 and Tables 10-13. Model names are the labels recorded in that report. No new model runs were performed for the README update, and raw experiment traces are not distributed with this repository. The report provides aggregate evidence; this repository provides the implementation and task definitions.
+The figures below follow the core evaluation scope in the team's [project report](../final_report/Web-VLMAgent_Project_Report.pdf), Sections 4.3-4.7 and Tables 10-13. Model names are the labels recorded in that report. No new model runs were performed for the README update, and raw experiment traces are not distributed with this repository. The report provides aggregate evidence; this repository provides the implementation and task definitions.
 
 ## Task Scope
 
-The README summarizes **eight tasks**: CSRankings easy/medium, all three Bilibili tasks, and all three Guangzhou travel tasks. CSRankings hard is not included because the project team identified a problem with its task specification. Its definition remains in the repository for historical context; no result for it is used in the README summary.
+The task collection consists of **eight core evaluation tasks and one supplementary exploratory task**. The core set contains CSRankings easy/medium, all three Bilibili tasks, and all three Guangzhou travel tasks. The supplementary CSRankings cross-area ranking/faculty task is stored in `tasks/exploratory/csrankings.yaml`; its specification requires review, so it is used for task-design and long-horizon diagnostics rather than core completion-rate reporting.
 
-The original report covers nine tasks. The eight-task counts below are recomputed from its task-level tables; they should be distinguished from the original report's aggregate results. No replacement score is assigned to the out-of-scope task.
+The report has been revised to use the same eight-core-plus-one-exploratory distinction. Historical batches included both scopes; their mixed totals are kept separate from core results. No replacement score is assigned to the exploratory task, and no experiment was rerun for this documentation update.
 
 The repeated baseline, the one-run-per-task vision baseline, and the exploratory cross-model study are separate experiments and are not pooled into a single success rate.
 
@@ -62,7 +62,7 @@ The report distinguishes valid, invalid, and incomplete runs. Invalid samples in
 
 ## Findings and Limits
 
-1. **Planning and evidence management remain important.** The original error analysis documents repeated navigation, missing subgoals, and weak evidence organization; its nine-task failure proportions are not used as statistics for the eight-task summary.
+1. **Planning and evidence management remain important.** The original error analysis documents repeated navigation, missing subgoals, and weak evidence organization; its mixed-batch failure proportions are not used as statistics for the eight-task core summary.
 2. **Text observations can support information tasks.** DOM candidates, accessibility trees, and page text provide useful evidence; this study does not isolate the causal effect of adding vision.
 3. **Richer observations have a cost.** Sending raw and marked screenshots together with long DOM/A11y text can exceed model or proxy limits.
 4. **Presentation quality is not factual accuracy.** A polished HTML report still needs source checks. Field coverage cannot establish that every recommendation or statement is correct.

@@ -67,11 +67,11 @@ python scripts/run_batch_eval.py `
   --observation_mode vision
 ```
 
-Evaluate 10 models on nine tasks:
+Evaluate 10 models on the eight core tasks (the default task files):
 
 ```powershell
 python scripts/run_model_suite_parallel.py `
-  --suite_tag eval_10models_9tasks `
+  --suite_tag eval_10models_8coretasks `
   --model_set official_20260622 `
   --max_workers 2 `
   --repeat 1 `
@@ -82,7 +82,7 @@ If space on the C: drive is limited, save traces to another drive:
 
 ```powershell
 python scripts/run_model_suite_parallel.py `
-  --suite_tag eval_10models_9tasks `
+  --suite_tag eval_10models_8coretasks `
   --model_set official_20260622 `
   --max_workers 2 `
   --repeat 1 `
@@ -94,19 +94,19 @@ Combine reports from multiple suites:
 
 ```powershell
 python scripts/collect_model_suite_reports.py `
-  --tag eval_10models_9tasks `
-  --output_dir reports\model_suite\combined_eval_10models_9tasks
+  --tag eval_10models_8coretasks `
+  --output_dir reports\model_suite\combined_eval_10models_8coretasks
 ```
 
 ## Evaluation Task Files
 
 | File | Task Count | Website / Scenario |
 |---|---:|---|
-| `tasks/csrankings.yaml` | 3 | CSRankings easy / medium / hard |
-| `tasks/bilibili.yaml` | 3 | Bilibili easy / medium / hard |
-| `tasks/guangzhou_travel.yaml` | 3 | Guangzhou travel planning easy / medium / hard |
+| `tasks/csrankings.yaml` | 2 | Core: CSRankings easy / medium |
+| `tasks/bilibili.yaml` | 3 | Core: Bilibili easy / medium / hard |
+| `tasks/guangzhou_travel.yaml` | 3 | Core: Guangzhou travel planning easy / medium / hard |
 
-Historical task files have been removed from the main evaluation set to keep evaluation criteria consistent.
+The three default files contain eight core tasks in total. The supplementary task is stored separately in `tasks/exploratory/csrankings.yaml` and is excluded from default suites and core completion rates. Its task specification needs review before scored reuse. To inspect it independently, pass that file explicitly to `scripts/run_batch_eval.py`; report those exploratory runs separately.
 
 ## Action Space
 

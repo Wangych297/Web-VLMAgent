@@ -79,7 +79,7 @@ Eight evaluation tasks cover **academic information retrieval**, **video analysi
 | **Guangzhou travel** | Attraction comparison | Medium | Compare at least three Chimelong-related attractions and recommend one. |
 | **Guangzhou travel** | Two-day itinerary | Hard | Research hotels, dining, attractions, transport, budget, and a rain-day alternative. |
 
-The same eight tasks define the scope of the results below. Task specifications and evaluation criteria are documented in the [evaluation notes](docs/EVALUATION.md).
+These eight core tasks define the scope of the results below. A supplementary [exploratory task](tasks/exploratory/csrankings.yaml) is maintained separately for task-design and long-horizon diagnostics. See the [evaluation notes](docs/EVALUATION.md) for the protocol.
 
 ## Showcase
 
@@ -107,7 +107,7 @@ The same eight tasks define the scope of the results below. Task specifications 
 
 **Evaluation scope.** Results cover the eight tasks listed above. Harness completion means the agent stopped with an answer. Deterministic validation is used for CSRankings; open-task field/source coverage still requires trace-based review. The GPT-5.5 baseline has one run per task.
 
-Counts are drawn from the project report, Tables 10-12, and recomputed for this eight-task scope. No experiments were rerun for this README. [Protocol, complete task-level results, and limitations →](docs/EVALUATION.md)
+Counts follow the eight-core-task scope documented in the project report, Tables 10-12. The report and task organization have been revised to distinguish core evaluation from supplementary exploration; no experiments were rerun for this update. [Protocol, complete task-level results, and limitations →](docs/EVALUATION.md)
 
 ## Quick Start
 

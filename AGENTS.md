@@ -124,6 +124,10 @@ step_002/
 
 Each step directory should contain observation, model response, parsed action, and execution result.
 
+## Evaluation Scope
+
+The default task files contain eight core tasks: two CSRankings, three Bilibili, and three Guangzhou travel tasks. A supplementary exploratory task is stored in `tasks/exploratory/csrankings.yaml` and must be run and reported separately; its specification needs review before scored reuse.
+
 ## Evaluation Metrics
 
 Required metrics:
