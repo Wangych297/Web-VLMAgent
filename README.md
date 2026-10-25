@@ -8,58 +8,20 @@ A multimodal web agent for real-browser research, multi-page planning, and repor
 
 **3 scenarios** &nbsp; / &nbsp; **8 evaluated tasks** &nbsp; / &nbsp; **80 repeated runs** &nbsp; / &nbsp; **10-model study**
 
-[Showcase](#showcase) · [Results](#evaluation-results) · [Architecture](#how-it-works) · [Quick Start](#quick-start) · [Run Guide](docs/USAGE.md)
+[Overview](#project-overview) · [Architecture](#how-it-works) · [Tasks](#real-website-tasks) · [Showcase](#showcase) · [Results](#evaluation-results) · [Quick Start](#quick-start)
 
 Collaborative project with **Shengwei Wang** and **Lechao Wu**.
 
 </div>
 
-## Showcase
+## Project Overview
 
 **From a natural-language request to browser actions and a visual report.** Web-VLMAgent reads screenshots and page structure, grounds actions in numbered elements, collects information across pages, and turns its findings into a browsable HTML report.
-
-![Recorded workbench showing Set-of-Marks grounding, browser observations, an answer panel, and a step timeline](docs/assets/workbench.webp)
-
-*An actual workbench capture from the project presentation: numbered element grounding, task context, and the step-by-step browser timeline in one view.*
-
-![Complete travel-report showcase captured directly from slide 5, with the itinerary and attraction guide together](docs/assets/travel-report.webp)
-
-*The complete travel-report showcase, captured directly from the presentation PDF: the two-day itinerary and attraction/booking guide are shown together in their original layout.*
-
-*These are original presentation screenshots, not interface mockups. They retain the source-language website content and the earlier Web-MMAgent branding. Report appearance illustrates the output format; factual accuracy requires checking the underlying sources.*
-
-## Evaluation Results
-
-| Experiment | Outcome | Evaluation scope |
-|---|---|---|
-| **Repeated-run baseline: DeepSeek V4 Pro** | **76/80 completed (95.00%)** | 8 tasks, 10 runs per task; harness-reported completion |
-| **Vision baseline: GPT-5.5** | **8/8 completed**; 9.75 steps on average | Same 8-task scope, one run per task; 2 CSRankings answers passed deterministic validation; 6 open tasks passed field-coverage checks |
-| **Cross-model study** | **10 model configurations explored** | Vision and text observations; planning, grounding, and service-level failure analysis |
-
-![DeepSeek V4 Pro repeated-run results across eight tasks: 76 of 80 runs completed, or 95 percent](docs/assets/evaluation.png)
-
-**From retrieval to multi-page planning.** The repeated-run baseline completed both CSRankings tasks and all three Bilibili tasks in 10/10 runs each. Guangzhou attraction comparison and two-day travel planning completed in 7/10 and 9/10 runs, respectively, showing where multi-page navigation and evidence collection still need improvement.
-
-**Evaluation scope.** This summary uses eight tasks; CSRankings hard is outside this scope because its task specification was identified as problematic. Harness completion means the agent stopped with an answer. Deterministic validation is used for CSRankings; open-task field/source coverage still requires trace-based review. The GPT-5.5 baseline has one run per task.
-
-Counts are drawn from the project report, Tables 10-12, and recomputed for this eight-task scope. No experiments were rerun for this README. [Protocol, complete task-level results, and limitations →](docs/EVALUATION.md)
-
-## What This Project Builds
 
 - **Multimodal grounding:** raw screenshots, Set-of-Marks annotations, DOM candidates, accessibility trees, and page text share one observation pipeline. Vision and text-only models use the same structured action interface.
 - **Long-task orchestration:** task planning, checklists, progress checks, and a final verifier support multi-page information gathering and help detect loops or premature completion.
 - **Inspectable execution:** every step preserves the observation, prompt, model response, parsed action, execution result, and verification artifacts for replay and error analysis.
 - **An evaluation workbench:** YAML tasks, repeated runs, multi-model suites, deterministic validators, open-task coverage checks, and HTML reports connect implementation to measurable experiments.
-
-### Real-Website Tasks
-
-| Scenario | Easy | Medium | Hard |
-|---|---|---|---|
-| **CSRankings** | Find a top NLP professor | Build a scholar profile across sources | Compare university rankings across 8 AI/Systems areas and faculty coverage |
-| **Bilibili** | Extract a public video's information | Compare the top 3 AI search results and their audiences | Browse candidate series, cross-check sources, and produce a recommendation page |
-| **Guangzhou travel** | Retrieve the top listed attraction | Compare at least 3 Chimelong-related attractions | Research hotels, dining, attractions, transport, budget, and a rain-day alternative for a two-day trip |
-
-These are project-defined tasks on live websites. The project implements an agent and evaluation framework; it does not train a new vision-language model.
 
 ## How It Works
 
@@ -99,6 +61,44 @@ step_000/
 ```
 
 </details>
+
+## Real-Website Tasks
+
+| Scenario | Easy | Medium | Hard |
+|---|---|---|---|
+| **CSRankings** | Find a top NLP professor | Build a scholar profile across sources | Compare university rankings across 8 AI/Systems areas and faculty coverage |
+| **Bilibili** | Extract a public video's information | Compare the top 3 AI search results and their audiences | Browse candidate series, cross-check sources, and produce a recommendation page |
+| **Guangzhou travel** | Retrieve the top listed attraction | Compare at least 3 Chimelong-related attractions | Research hotels, dining, attractions, transport, budget, and a rain-day alternative for a two-day trip |
+
+These are project-defined tasks on live websites. The project implements an agent and evaluation framework; it does not train a new vision-language model.
+
+## Showcase
+
+![Recorded workbench showing Set-of-Marks grounding, browser observations, an answer panel, and a step timeline](docs/assets/workbench.webp)
+
+*An actual workbench capture from the project presentation: numbered element grounding, task context, and the step-by-step browser timeline in one view.*
+
+![Complete travel-report showcase captured directly from slide 5, with the itinerary and attraction guide together](docs/assets/travel-report.webp)
+
+*The complete travel-report showcase, captured directly from the presentation PDF: the two-day itinerary and attraction/booking guide are shown together in their original layout.*
+
+*These are original presentation screenshots, not interface mockups. They retain the source-language website content and the earlier Web-MMAgent branding. Report appearance illustrates the output format; factual accuracy requires checking the underlying sources.*
+
+## Evaluation Results
+
+| Experiment | Outcome | Evaluation scope |
+|---|---|---|
+| **Repeated-run baseline: DeepSeek V4 Pro** | **76/80 completed (95.00%)** | 8 tasks, 10 runs per task; harness-reported completion |
+| **Vision baseline: GPT-5.5** | **8/8 completed**; 9.75 steps on average | Same 8-task scope, one run per task; 2 CSRankings answers passed deterministic validation; 6 open tasks passed field-coverage checks |
+| **Cross-model study** | **10 model configurations explored** | Vision and text observations; planning, grounding, and service-level failure analysis |
+
+![DeepSeek V4 Pro repeated-run results across eight tasks: 76 of 80 runs completed, or 95 percent](docs/assets/evaluation.png)
+
+**From retrieval to multi-page planning.** The repeated-run baseline completed both CSRankings tasks and all three Bilibili tasks in 10/10 runs each. Guangzhou attraction comparison and two-day travel planning completed in 7/10 and 9/10 runs, respectively, showing where multi-page navigation and evidence collection still need improvement.
+
+**Evaluation scope.** This summary uses eight tasks; CSRankings hard is outside this scope because its task specification was identified as problematic. Harness completion means the agent stopped with an answer. Deterministic validation is used for CSRankings; open-task field/source coverage still requires trace-based review. The GPT-5.5 baseline has one run per task.
+
+Counts are drawn from the project report, Tables 10-12, and recomputed for this eight-task scope. No experiments were rerun for this README. [Protocol, complete task-level results, and limitations →](docs/EVALUATION.md)
 
 ## Quick Start
 
