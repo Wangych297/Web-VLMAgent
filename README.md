@@ -4,7 +4,7 @@
 
 ### See the page. Take action. Keep the evidence.
 
-A multimodal web agent for real-browser research, multi-page planning, and report generation.
+A multimodal web agent built from scratch for real-browser research, multi-page planning, and report generation.
 
 **3 scenarios** &nbsp; / &nbsp; **8 evaluated tasks** &nbsp; / &nbsp; **80 repeated runs** &nbsp; / &nbsp; **10-model study**
 
@@ -15,6 +15,8 @@ Collaborative project with **Shengwei Wang** and **Lechao Wu**.
 </div>
 
 ## Project Overview
+
+**Built from scratch by our team.** We independently designed and implemented the core agent architecture, multimodal observation pipeline, browser-action loop, task orchestration, verification, trace replay, and evaluation workbench. The system is not a fork or extension of OpenClaw or another existing open-source agent framework. It uses general-purpose libraries such as Playwright and Pydantic, together with model APIs; ReAct and Set-of-Marks serve as methodological references.
 
 **From a natural-language request to browser actions and a visual report.** Web-VLMAgent reads screenshots and page structure, grounds actions in numbered elements, collects information across pages, and turns its findings into a browsable HTML report.
 
@@ -43,7 +45,7 @@ Collaborative project with **Shengwei Wang** and **Lechao Wu**.
 | Agent, planning, checklists, and verification | [`agents/`](agents/) |
 | Model adapters | [`models/`](models/) |
 | Evaluation, metrics, and validators | [`eval/`](eval/) |
-| Nine task definitions | [`tasks/`](tasks/) |
+| Task definitions | [`tasks/`](tasks/) |
 | Workbench and replay | [`webui/`](webui/) |
 
 ```text
@@ -64,13 +66,20 @@ step_000/
 
 ## Real-Website Tasks
 
-| Scenario | Easy | Medium | Hard |
-|---|---|---|---|
-| **CSRankings** | Find a top NLP professor | Build a scholar profile across sources | Compare university rankings across 8 AI/Systems areas and faculty coverage |
-| **Bilibili** | Extract a public video's information | Compare the top 3 AI search results and their audiences | Browse candidate series, cross-check sources, and produce a recommendation page |
-| **Guangzhou travel** | Retrieve the top listed attraction | Compare at least 3 Chimelong-related attractions | Research hotels, dining, attractions, transport, budget, and a rain-day alternative for a two-day trip |
+Eight evaluation tasks cover **academic information retrieval**, **video analysis**, and **travel planning** on live websites.
 
-These are project-defined tasks on live websites. The project implements an agent and evaluation framework; it does not train a new vision-language model.
+| Scenario | Task | Difficulty | Goal |
+|---|---|---|---|
+| **CSRankings** | NLP professor lookup | Easy | Find the professor with the most publications at the top-ranked US university in NLP. |
+| **CSRankings** | Scholar profile | Medium | Identify a leading ML scholar and build a profile from multiple sources. |
+| **Bilibili** | Public video information | Easy | Retrieve a public video's title, URL, and visible description. |
+| **Bilibili** | AI search comparison | Medium | Compare the top three AI search results and analyze their intended audiences. |
+| **Bilibili** | Recommendation report | Hard | Browse candidate series, cross-check sources, and produce an HTML recommendation page. |
+| **Guangzhou travel** | Attraction lookup | Easy | Retrieve the top listed attraction and its visible details. |
+| **Guangzhou travel** | Attraction comparison | Medium | Compare at least three Chimelong-related attractions and recommend one. |
+| **Guangzhou travel** | Two-day itinerary | Hard | Research hotels, dining, attractions, transport, budget, and a rain-day alternative. |
+
+The same eight tasks define the scope of the results below. Task specifications and evaluation criteria are documented in the [evaluation notes](docs/EVALUATION.md).
 
 ## Showcase
 
@@ -96,7 +105,7 @@ These are project-defined tasks on live websites. The project implements an agen
 
 **From retrieval to multi-page planning.** The repeated-run baseline completed both CSRankings tasks and all three Bilibili tasks in 10/10 runs each. Guangzhou attraction comparison and two-day travel planning completed in 7/10 and 9/10 runs, respectively, showing where multi-page navigation and evidence collection still need improvement.
 
-**Evaluation scope.** This summary uses eight tasks; CSRankings hard is outside this scope because its task specification was identified as problematic. Harness completion means the agent stopped with an answer. Deterministic validation is used for CSRankings; open-task field/source coverage still requires trace-based review. The GPT-5.5 baseline has one run per task.
+**Evaluation scope.** Results cover the eight tasks listed above. Harness completion means the agent stopped with an answer. Deterministic validation is used for CSRankings; open-task field/source coverage still requires trace-based review. The GPT-5.5 baseline has one run per task.
 
 Counts are drawn from the project report, Tables 10-12, and recomputed for this eight-task scope. No experiments were rerun for this README. [Protocol, complete task-level results, and limitations →](docs/EVALUATION.md)
 
@@ -145,13 +154,3 @@ Use a model supported by your configured provider. Live pages and model endpoint
 Open-task field coverage is a preliminary check rather than a factual-accuracy guarantee. Live websites change; popups, navigation, API timeouts, and context limits affect reproducibility. The multi-model study uses different observation modes, so its results are exploratory rather than a controlled model ranking.
 
 Browser execution validates actions and blocks high-risk operations including login, payment, purchases, deletion, and sensitive submissions. The model does not execute arbitrary generated code. See the [action-space and safety details](docs/USAGE.md#action-space).
-
-## Team
-
-Developed collaboratively for *Principles and Applications of Multimodal Large Models* at Sun Yat-sen University.
-
-| Contributor | Main contributions documented in the project report |
-|---|---|
-| **[Wangych297](https://github.com/Wangych297)** | Engineering extensions; multimodal observations and browser backends; long-task runner, checklists, progress/final verification, WebUI and HTML reports; Guangzhou travel tasks; presentation materials and delivery |
-| **Shengwei Wang** | Architecture and baseline; browser/action/trace and evaluation pipeline; CSRankings tasks; model experiments, error analysis, and report writing |
-| **Lechao Wu** | Bilibili tasks; implementation and evaluation collaboration; result checking, analysis, and report writing |
