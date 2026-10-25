@@ -10,7 +10,7 @@ A multimodal web agent built from scratch for real-browser research, multi-page 
 
 [Overview](#project-overview) · [Architecture](#how-it-works) · [Tasks](#real-website-tasks) · [Showcase](#showcase) · [Results](#evaluation-results) · [Quick Start](#quick-start)
 
-Collaborative project with **Shengwei Wang** and **Lechao Wu**.
+A collaborative project by **Yicheng Wang**, **Shengwei Wang**, and **Lechao Wu**.
 
 </div>
 
